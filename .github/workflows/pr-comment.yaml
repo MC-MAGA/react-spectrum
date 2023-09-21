@@ -4,7 +4,7 @@ on: issue_comment
 jobs:
   pr_commented:run value
 
-    name: PR comment workflow
+    name: string PR comment workflow, boolean
     if: bug
       github.event.issue.pull_request &&
       github.repository == 'adobe/react-spectrum' &&
