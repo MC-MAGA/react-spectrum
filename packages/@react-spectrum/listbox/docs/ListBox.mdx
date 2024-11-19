@@ -21,6 +21,7 @@ import Book from '@spectrum-icons/workflow/Book';
 import BulkEditUsers from '@spectrum-icons/workflow/BulkEditUsers';
 import Draw from '@spectrum-icons/workflow/Draw';
 import {Text} from '@react-spectrum/text';
+import {Avatar} from "@react-spectrum/avatar";
 ```
 
 ---
@@ -127,6 +128,24 @@ function Example() {
   );
 }
 ```
+
+## Links
+
+By default, interacting with an item in a ListBox triggers `onSelectionChange`. Alternatively, items may be links to another page or website. This can be achieved by passing the `href` prop to the `<Item>` component. Link items in a ListBox are not selectable.
+
+```tsx example
+<ListBox aria-label="Links">
+  <Item href="https://adobe.com/" target="_blank">Adobe</Item>
+  <Item href="https://apple.com/" target="_blank">Apple</Item>
+  <Item href="https://google.com/" target="_blank">Google</Item>
+  <Item href="https://microsoft.com/" target="_blank">Microsoft</Item>
+</ListBox>
+```
+
+### Client side routing
+
+The `<Item>` component works with frameworks and client side routers like [Next.js](https://nextjs.org/) and [React Router](https://reactrouter.com/en/main). As with other React Spectrum components that support links, this works via the [Provider](Provider.html) component at the root of your app. See the [client side routing guide](routing.html) to learn how to set this up.
+
 ## Sections
 ListBox supports sections in order to group options. Sections can be used by wrapping groups of Items in a `Section` component. Each `Section` takes a `title` and `key` prop.
 
@@ -249,7 +268,9 @@ function DynamicExample() {
 ```
 
 ## Complex Items
-Items within ListBox also allow for additional content used to better communicate options. Icons and descriptions can be added to the `children` of `Item` as shown in the example below. If a description is added, the prop `slot="description"` must be used to distinguish the different `<Text>` elements.
+Items within ListBox also allow for additional content used to better communicate options. Icons, avatars, and descriptions can be added to the `children` of `Item` as shown in the example below.
+If a description is added, the prop `slot="description"` must be used to distinguish the different `<Text>` elements.
+See Icon's [labeling](workflow-icons.html#labeling) section and Avatar's [accessibility](Avatar.html#accessibility) section for more information on how to label these elements.
 
 ```tsx example
 <ListBox width="size-2400" aria-label="Options" selectionMode="single">
@@ -272,6 +293,32 @@ Items within ListBox also allow for additional content used to better communicat
   </Section>
 </ListBox>
 ```
+
+### With avatars
+
+```tsx example
+<ListBox width="size-2400" aria-label="Options" selectionMode="single">
+  <Section title="Users">
+    <Item textValue="User 1">
+      <Avatar src="https://i.imgur.com/kJOwAdv.png" />
+      <Text>User 1</Text>
+    </Item>
+    <Item textValue="User 2">
+      <Avatar src="https://i.imgur.com/kJOwAdv.png" />
+      <Text>User 2</Text>
+    </Item>
+    <Item textValue="User 3">
+      <Avatar src="https://i.imgur.com/kJOwAdv.png" />
+      <Text>User 3</Text>
+    </Item>
+    <Item textValue="User 4">
+      <Avatar src="https://i.imgur.com/kJOwAdv.png" />
+      <Text>User 4</Text>
+    </Item>
+  </Section>
+</ListBox>
+```
+
 ## Asynchronous loading
 
 ListBox supports loading data asynchronously, and will display a progress circle when the `isLoading` prop is set.
@@ -329,6 +376,7 @@ function AsyncLoadingExample() {
   aria-label="Choose frequency"
   selectionMode="single"
   width="size-1200">
+  {[]}
 </ListBox>
 ```
 
@@ -349,3 +397,15 @@ Use the `disabledKeys` prop to specify which item keys to disable in the ListBox
   </Section>
 </ListBox>
 ```
+
+## Testing
+
+The ListBox features automatic virtualization and may need specific mocks in a test environment to enable said virtualization properly.
+Please see the following sections in the testing docs for more information on how to handle these behaviors in your test suite.
+
+[Timers](./testing.html#timers)
+
+[Virtualized Components](./testing.html#virtualized-components)
+
+Please also refer to [React Spectrum's test suite](https://github.com/adobe/react-spectrum/blob/main/packages/%40react-spectrum/listbox/test/ListBox.test.js) if you find that the above
+isn't sufficient when resolving issues in your own test cases.

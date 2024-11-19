@@ -10,11 +10,11 @@
  * governing permissions and limitations under the License.
  */
 
-import {getScrollParent} from './';
+import {getScrollParents} from './getScrollParents';
 
 interface ScrollIntoViewportOpts {
   /** The optional containing element of the target to be centered in the viewport. */
-  containingElement?: Element
+  containingElement?: Element | null
 }
 
 /**
@@ -81,8 +81,8 @@ function relativeOffset(ancestor: HTMLElement, child: HTMLElement, axis: 'left'|
  * that will be centered in the viewport prior to scrolling the targetElement into view. If scrolling is prevented on
  * the body (e.g. targetElement is in a popover), this will only scroll the scroll parents of the targetElement up to but not including the body itself.
  */
-export function scrollIntoViewport(targetElement: Element, opts?: ScrollIntoViewportOpts) {
-  if (document.contains(targetElement)) {
+export function scrollIntoViewport(targetElement: Element | null, opts?: ScrollIntoViewportOpts) {
+  if (targetElement && document.contains(targetElement)) {
     let root = document.scrollingElement || document.documentElement;
     let isScrollPrevented = window.getComputedStyle(root).overflow === 'hidden';
     // If scrolling is not currently prevented then we aren’t in a overlay nor is a overlay open, just use element.scrollIntoView to bring the element into view
@@ -99,12 +99,10 @@ export function scrollIntoViewport(targetElement: Element, opts?: ScrollIntoView
         targetElement.scrollIntoView?.({block: 'nearest'});
       }
     } else {
-      let scrollParent = getScrollParent(targetElement);
+      let scrollParents = getScrollParents(targetElement);
       // If scrolling is prevented, we don't want to scroll the body since it might move the overlay partially offscreen and the user can't scroll it back into view.
-      while (targetElement && scrollParent && targetElement !== root && scrollParent !== root) {
+      for (let scrollParent of scrollParents) {
         scrollIntoView(scrollParent as HTMLElement, targetElement as HTMLElement);
-        targetElement = scrollParent;
-        scrollParent = getScrollParent(targetElement);
       }
     }
   }

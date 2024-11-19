@@ -18,7 +18,8 @@ import {ComponentMeta} from '@storybook/react';
 import defaultConfig, {columns, EmptyStateTable, TableStory} from './Table.stories';
 import {enableTableNestedRows} from '@react-stately/flags';
 import {Flex} from '@react-spectrum/layout';
-import React, {Key, useState} from 'react';
+import {Key} from '@react-types/shared';
+import React, {useState} from 'react';
 
 enableTableNestedRows();
 
@@ -27,6 +28,7 @@ export default {
   title: 'TableView/Expandable rows'
 } as ComponentMeta<typeof TableView>;
 
+// Known accessibility issue that will be caught by aXe: https://github.com/adobe/react-spectrum/wiki/Known-accessibility-false-positives#tableview
 export const StaticExpandableRows: TableStory = {
   args: {
     'aria-label': 'TableView with static expandable rows',
@@ -160,7 +162,7 @@ export const UserSetRowHeader: TableStory = {
   }
 };
 
-let manyRows = [];
+let manyRows: Record<typeof columns[number]['key'], string>[] = [];
 function generateRow(lvlIndex, lvlLimit, rowIndex) {
   let row = {key: `Row ${rowIndex} Lvl ${lvlIndex}`};
   for (let col of columns) {

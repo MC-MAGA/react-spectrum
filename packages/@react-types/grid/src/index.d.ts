@@ -10,8 +10,7 @@
  * governing permissions and limitations under the License.
  */
 
-import {Collection, Node} from '@react-types/shared';
-import {Key} from 'react';
+import {Collection, Key, Node} from '@react-types/shared';
 
 export interface GridCollection<T> extends Collection<GridNode<T>> {
   /** The number of columns in the grid. */
@@ -20,7 +19,7 @@ export interface GridCollection<T> extends Collection<GridNode<T>> {
   rows: GridNode<T>[]
 }
 
-export interface GridRow<T> {
+export interface GridRow<T> extends Partial<GridNode<T>> {
   key?: Key,
   type: string,
   childNodes: Iterable<Node<T>>

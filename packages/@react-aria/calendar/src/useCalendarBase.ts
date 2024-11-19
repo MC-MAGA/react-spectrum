@@ -36,7 +36,7 @@ export interface CalendarAria {
 }
 
 export function useCalendarBase(props: CalendarPropsBase & DOMProps & AriaLabelingProps, state: CalendarState | RangeCalendarState): CalendarAria {
-  let stringFormatter = useLocalizedStringFormatter(intlMessages);
+  let stringFormatter = useLocalizedStringFormatter(intlMessages, '@react-aria/calendar');
   let domProps = filterDOMProps(props);
 
   let title = useVisibleRangeDescription(state.visibleRange.start, state.visibleRange.end, state.timeZone, false);
@@ -59,7 +59,7 @@ export function useCalendarBase(props: CalendarPropsBase & DOMProps & AriaLabeli
     // handle an update to the caption that describes the currently selected range, to announce the new value
   }, [selectedDateDescription]);
 
-  let errorMessageId = useSlotId([Boolean(props.errorMessage), props.validationState]);
+  let errorMessageId = useSlotId([Boolean(props.errorMessage), props.isInvalid, props.validationState]);
 
   // Pass the label to the child grid elements.
   hookData.set(state, {

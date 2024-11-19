@@ -10,7 +10,7 @@
  * governing permissions and limitations under the License.
  */
 
-import {CollectionStateBase} from '@react-types/shared';
+import {Collection, CollectionStateBase, Key, Node} from '@react-types/shared';
 import {SingleSelectListState, useSingleSelectListState} from '@react-stately/list';
 import {TabListProps} from '@react-types/tabs';
 import {useEffect, useRef} from 'react';
@@ -29,7 +29,8 @@ export interface TabListState<T> extends SingleSelectListState<T> {
 export function useTabListState<T extends object>(props: TabListStateOptions<T>): TabListState<T> {
   let state = useSingleSelectListState<T>({
     ...props,
-    suppressTextValueWarning: true
+    suppressTextValueWarning: true,
+    defaultSelectedKey: props.defaultSelectedKey ?? findDefaultSelectedKey(props.collection, props.disabledKeys ? new Set(props.disabledKeys) : new Set()) ?? undefined
   });
 
   let {
@@ -42,17 +43,8 @@ export function useTabListState<T extends object>(props: TabListStateOptions<T>)
   useEffect(() => {
     // Ensure a tab is always selected (in case no selected key was specified or if selected item was deleted from collection)
     let selectedKey = currentSelectedKey;
-    if (selectionManager.isEmpty || !collection.getItem(selectedKey)) {
-      selectedKey = collection.getFirstKey();
-      // loop over tabs until we find one that isn't disabled and select that
-      while (state.disabledKeys.has(selectedKey) && selectedKey !== collection.getLastKey()) {
-        selectedKey = collection.getKeyAfter(selectedKey);
-      }
-      // if this check is true, then every item is disabled, it makes more sense to default to the first key than the last
-      if (state.disabledKeys.has(selectedKey) && selectedKey === collection.getLastKey()) {
-        selectedKey = collection.getFirstKey();
-      }
-
+    if (selectionManager.isEmpty || selectedKey == null || !collection.getItem(selectedKey)) {
+      selectedKey = findDefaultSelectedKey(collection, state.disabledKeys);
       if (selectedKey != null) {
         // directly set selection because replace/toggle selection won't consider disabled keys
         selectionManager.setSelectedKeys([selectedKey]);
@@ -70,4 +62,21 @@ export function useTabListState<T extends object>(props: TabListStateOptions<T>)
     ...state,
     isDisabled: props.isDisabled || false
   };
+}
+
+function findDefaultSelectedKey<T>(collection: Collection<Node<T>> | undefined, disabledKeys: Set<Key>) {
+  let selectedKey: Key | null = null;
+  if (collection) {
+    selectedKey = collection.getFirstKey();
+    // loop over tabs until we find one that isn't disabled and select that
+    while (selectedKey != null && (disabledKeys.has(selectedKey) || collection.getItem(selectedKey)?.props?.isDisabled) && selectedKey !== collection.getLastKey()) {
+      selectedKey = collection.getKeyAfter(selectedKey);
+    }
+    // if this check is true, then every item is disabled, it makes more sense to default to the first key than the last
+    if (selectedKey != null && (disabledKeys.has(selectedKey) || collection.getItem(selectedKey)?.props?.isDisabled) && selectedKey === collection.getLastKey()) {
+      selectedKey = collection.getFirstKey();
+    }
+  }
+
+  return selectedKey;
 }

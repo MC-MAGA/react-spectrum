@@ -11,6 +11,7 @@
  */
 
 import {AriaProgressBarProps, useProgressBar} from 'react-aria';
+import {clamp} from '@react-stately/utils';
 import {ContextValue, RenderProps, SlotProps, useContextProps, useRenderProps, useSlot} from './utils';
 import {LabelContext} from './Label';
 import React, {createContext, ForwardedRef, forwardRef} from 'react';
@@ -44,6 +45,7 @@ function ProgressBar(props: ProgressBarProps, ref: ForwardedRef<HTMLDivElement>)
     maxValue = 100,
     isIndeterminate = false
   } = props;
+  value = clamp(value, minValue, maxValue);
 
   let [labelRef, label] = useSlot();
   let {
@@ -65,7 +67,7 @@ function ProgressBar(props: ProgressBarProps, ref: ForwardedRef<HTMLDivElement>)
   });
 
   return (
-    <div {...progressBarProps} {...renderProps} ref={ref} slot={props.slot}>
+    <div {...progressBarProps} {...renderProps} ref={ref} slot={props.slot || undefined}>
       <LabelContext.Provider value={{...labelProps, ref: labelRef, elementType: 'span'}}>
         {renderProps.children}
       </LabelContext.Provider>

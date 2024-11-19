@@ -22,7 +22,9 @@ const EXPRESS_ICON_MAPPING = {
   InfoMedium: 'SX_Info_18_N',
   InfoSmall: 'SX_Info_14_S',
   SuccessMedium: 'SX_CheckmarkCircle_18_N',
-  SuccessSmall: 'SX_CheckmarkCircle_14_S'
+  SuccessSmall: 'SX_CheckmarkCircle_14_S',
+  FolderBreadcrumb: 'SX_More_18',
+  ChevronRightSmall: 'SX_ChevronRight_18',
 };
 
 let displayNameRegex = /.*?\.displayName = '(?<name>.*?)';/;
@@ -36,15 +38,15 @@ function template(iconName) {
     return (
 `import {${iconName} as IconComponent} from '@adobe/react-spectrum-ui/dist/${iconName}.js';
 import {UIIcon, UIIconPropsWithoutChildren} from '@react-spectrum/icon';
-import {useProvider} from '@react-spectrum/provider';
-import React from 'react';
+import {Context} from '@react-spectrum/provider';
+import React, {useContext} from 'react';
 
 ${jsx}
 
 ExpressIcon.displayName = IconComponent.displayName;
 
 export default function ${iconName}(props: UIIconPropsWithoutChildren) {
-  let provider = useProvider();
+  let provider = useContext(Context);
   return <UIIcon {...props}>{provider?.theme?.global?.express ? <ExpressIcon /> : <IconComponent />}</UIIcon>;
 }
 `

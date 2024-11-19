@@ -59,7 +59,7 @@ export type ListViewStory = ComponentStoryObj<typeof ListView>;
 export const DragOut: ListViewStory = {
   render: (args) => (
     <Flex direction="row" wrap alignItems="center">
-      <input />
+      <input aria-label="input before" />
       <Droppable />
       <DragExampleUtilHandlers listViewProps={args} dndOptions={{onDragStart: action('dragStart'), onDragEnd: action('dragEnd')}} />
     </Flex>
@@ -72,6 +72,18 @@ export const DragWithin: ListViewStory = {
     <ReorderExampleUtilHandlers listViewProps={args} dndOptions={{onDragStart: action('dragStart'), onDragEnd: action('dragEnd')}} />
   ),
   name: 'Drag within list (Reorder}'
+};
+
+let manyItems: {identifier: string, type: string, name: string}[] = [];
+for (let i = 0; i < 100; i++) {
+  manyItems.push({identifier: 'item' + i, type: 'item', name: 'Item ' + i});
+}
+
+export const DragWithinMany: ListViewStory = {
+  render: (args) => (
+    <ReorderExampleUtilHandlers {...args} items={manyItems} listViewProps={{overflowMode: 'wrap', height: 400}} />
+  ),
+  name: 'Drag within list with many items'
 };
 
 export const DropOntoItem: ListViewStory = {

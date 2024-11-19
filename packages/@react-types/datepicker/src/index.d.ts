@@ -19,6 +19,7 @@ import {
   InputDOMProps,
   LabelableProps,
   RangeValue,
+  SpectrumFieldValidation,
   SpectrumLabelableProps,
   StyleProps,
   Validation,
@@ -36,15 +37,15 @@ type MappedDateValue<T> =
   never;
 
 export type Granularity = 'day' | 'hour' | 'minute' | 'second';
-interface DateFieldBase<T extends DateValue> extends InputBase, Validation, FocusableProps, LabelableProps, HelpTextProps, OverlayTriggerProps {
+interface DateFieldBase<T extends DateValue> extends InputBase, Validation<MappedDateValue<T>>, FocusableProps, LabelableProps, HelpTextProps, OverlayTriggerProps {
   /** The minimum allowed date that a user may select. */
-  minValue?: DateValue,
+  minValue?: DateValue | null,
   /** The maximum allowed date that a user may select. */
-  maxValue?: DateValue,
+  maxValue?: DateValue | null,
   /** Callback that is called for each date of the calendar. If it returns true, then the date is unavailable. */
   isDateUnavailable?: (date: DateValue) => boolean,
   /** A placeholder date that influences the format of the placeholder shown when no value is selected. Defaults to today's date at midnight. */
-  placeholderValue?: T,
+  placeholderValue?: T | null,
   /** Whether to display the time in 12 or 24 hour format. By default, this is determined by the user's locale. */
   hourCycle?: 12 | 24,
   /** Determines the smallest unit that is displayed in the date picker. By default, this is `"day"` for dates, and `"minute"` for times. */
@@ -62,7 +63,7 @@ interface DateFieldBase<T extends DateValue> extends InputBase, Validation, Focu
 }
 
 interface AriaDateFieldBaseProps<T extends DateValue> extends DateFieldBase<T>, AriaLabelingProps, DOMProps {}
-export interface DateFieldProps<T extends DateValue> extends DateFieldBase<T>, ValueBase<T | null, MappedDateValue<T>> {}
+export interface DateFieldProps<T extends DateValue> extends DateFieldBase<T>, ValueBase<T | null, MappedDateValue<T> | null> {}
 export interface AriaDateFieldProps<T extends DateValue> extends DateFieldProps<T>, AriaDateFieldBaseProps<T>, InputDOMProps {}
 
 interface DatePickerBase<T extends DateValue> extends DateFieldBase<T>, OverlayTriggerProps {
@@ -74,19 +75,16 @@ interface DatePickerBase<T extends DateValue> extends DateFieldBase<T>, OverlayT
 }
 export interface AriaDatePickerBaseProps<T extends DateValue> extends DatePickerBase<T>, AriaLabelingProps, DOMProps {}
 
-export interface DatePickerProps<T extends DateValue> extends DatePickerBase<T>, ValueBase<T | null, MappedDateValue<T>> {}
+export interface DatePickerProps<T extends DateValue> extends DatePickerBase<T>, ValueBase<T | null, MappedDateValue<T> | null> {}
 export interface AriaDatePickerProps<T extends DateValue> extends DatePickerProps<T>, AriaDatePickerBaseProps<T>, InputDOMProps {}
 
 export type DateRange = RangeValue<DateValue>;
-export interface DateRangePickerProps<T extends DateValue> extends DatePickerBase<T>, ValueBase<RangeValue<T> | null, RangeValue<MappedDateValue<T>>> {
+export interface DateRangePickerProps<T extends DateValue> extends Omit<DatePickerBase<T>, 'validate'>, Validation<RangeValue<MappedDateValue<T>>>, ValueBase<RangeValue<T> | null, RangeValue<MappedDateValue<T>> | null> {
   /**
    * When combined with `isDateUnavailable`, determines whether non-contiguous ranges,
    * i.e. ranges containing unavailable dates, may be selected.
    */
-  allowsNonContiguousRanges?: boolean
-}
-
-export interface AriaDateRangePickerProps<T extends DateValue> extends AriaDatePickerBaseProps<T>, DateRangePickerProps<T> {
+  allowsNonContiguousRanges?: boolean,
   /**
    * The name of the start date input element, used when submitting an HTML form. See [MDN](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input#htmlattrdefname).
    */
@@ -97,7 +95,9 @@ export interface AriaDateRangePickerProps<T extends DateValue> extends AriaDateP
   endName?: string
 }
 
-interface SpectrumDateFieldBase extends SpectrumLabelableProps, HelpTextProps, StyleProps {
+export interface AriaDateRangePickerProps<T extends DateValue> extends Omit<AriaDatePickerBaseProps<T>, 'validate'>, DateRangePickerProps<T> {}
+
+interface SpectrumDateFieldBase<T extends DateValue> extends SpectrumLabelableProps, HelpTextProps, SpectrumFieldValidation<MappedDateValue<T>>, StyleProps {
   /**
    * Whether the date picker should be displayed with a quiet style.
    * @default false
@@ -110,7 +110,7 @@ interface SpectrumDateFieldBase extends SpectrumLabelableProps, HelpTextProps, S
   showFormatHelpText?: boolean
 }
 
-interface SpectrumDatePickerBase extends SpectrumDateFieldBase, SpectrumLabelableProps, StyleProps {
+interface SpectrumDatePickerBase<T extends DateValue> extends SpectrumDateFieldBase<T>, SpectrumLabelableProps, StyleProps {
   /**
    * The maximum number of months to display at once in the calendar popover, if screen space permits.
    * @default 1
@@ -123,9 +123,9 @@ interface SpectrumDatePickerBase extends SpectrumDateFieldBase, SpectrumLabelabl
   shouldFlip?: boolean
 }
 
-export interface SpectrumDatePickerProps<T extends DateValue> extends AriaDatePickerProps<T>, SpectrumDatePickerBase {}
-export interface SpectrumDateRangePickerProps<T extends DateValue> extends AriaDateRangePickerProps<T>, SpectrumDatePickerBase {}
-export interface SpectrumDateFieldProps<T extends DateValue> extends AriaDateFieldProps<T>, SpectrumDateFieldBase {}
+export interface SpectrumDatePickerProps<T extends DateValue> extends Omit<AriaDatePickerProps<T>, 'isInvalid' | 'validationState'>, SpectrumDatePickerBase<T> {}
+export interface SpectrumDateRangePickerProps<T extends DateValue> extends Omit<AriaDateRangePickerProps<T>, 'isInvalid' | 'validationState'>, Omit<SpectrumDatePickerBase<T>, 'validate'> {}
+export interface SpectrumDateFieldProps<T extends DateValue> extends Omit<AriaDateFieldProps<T>, 'isInvalid' | 'validationState'>, SpectrumDateFieldBase<T> {}
 
 export type TimeValue = Time | CalendarDateTime | ZonedDateTime;
 type MappedTimeValue<T> =
@@ -134,7 +134,7 @@ type MappedTimeValue<T> =
   T extends Time ? Time :
   never;
 
-export interface TimePickerProps<T extends TimeValue> extends InputBase, Validation, FocusableProps, LabelableProps, HelpTextProps, ValueBase<T | null, MappedTimeValue<T>> {
+export interface TimePickerProps<T extends TimeValue> extends InputBase, Validation<MappedTimeValue<T>>, FocusableProps, LabelableProps, HelpTextProps, ValueBase<T | null, MappedTimeValue<T> | null> {
   /** Whether to display the time in 12 or 24 hour format. By default, this is determined by the user's locale. */
   hourCycle?: 12 | 24,
   /**
@@ -155,14 +155,14 @@ export interface TimePickerProps<T extends TimeValue> extends InputBase, Validat
    */
   placeholderValue?: T,
   /** The minimum allowed time that a user may select. */
-  minValue?: TimeValue,
+  minValue?: TimeValue | null,
   /** The maximum allowed time that a user may select. */
-  maxValue?: TimeValue
+  maxValue?: TimeValue | null
 }
 
-export interface AriaTimeFieldProps<T extends TimeValue> extends TimePickerProps<T>, AriaLabelingProps, DOMProps {}
+export interface AriaTimeFieldProps<T extends TimeValue> extends TimePickerProps<T>, AriaLabelingProps, DOMProps, InputDOMProps {}
 
-export interface SpectrumTimeFieldProps<T extends TimeValue> extends AriaTimeFieldProps<T>, SpectrumLabelableProps, StyleProps {
+export interface SpectrumTimeFieldProps<T extends TimeValue> extends Omit<AriaTimeFieldProps<T>, 'isInvalid' | 'validationState'>, SpectrumFieldValidation<MappedTimeValue<T>>, SpectrumLabelableProps, StyleProps, InputDOMProps {
   /**
    * Whether the time field should be displayed with a quiet style.
    * @default false

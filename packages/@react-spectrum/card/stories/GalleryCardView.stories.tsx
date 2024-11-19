@@ -1,3 +1,4 @@
+// @ts-nocheck
 /*
  * Copyright 2021 Adobe. All rights reserved.
  * This file is licensed to you under the Apache License, Version 2.0 (the "License");
@@ -24,7 +25,6 @@ import {
   FalsyIds,
   FilteringGrid,
   IsLoadingHeightGrid,
-  IsLoadingNoHeightGrid,
   LoadingMoreGrid,
   StaticCards,
   StaticCardViewStory
@@ -78,6 +78,7 @@ let itemsNoThinImages = [
   {width: 1516, height: 1009, src: 'https://i.imgur.com/1nScMIH.jpg', id: 21, title: 'Bob 5'}
 ];
 
+// TODO: accessibility failures regarding article element with role="gridcell", will need to double check when we pick CardView back up
 export default {
   title: 'CardView/Gallery layout',
   component: CardView,
@@ -158,14 +159,6 @@ export const SelectedKeys: ControlledCardViewStory = {
     ...ControlledCards.args,
     layout: GalleryLayout,
     items: itemsLowVariance
-  }
-};
-
-export const IsLoadingNoHeightGallery: DynamicCardViewStory = {
-  ...IsLoadingNoHeightGrid,
-  args: {
-    ...IsLoadingNoHeightGrid.args,
-    layout: GalleryLayout
   }
 };
 

@@ -18,7 +18,8 @@ import {FocusableRef} from '@react-types/shared';
 import {Input} from './Input';
 import React, {ReactElement, useRef} from 'react';
 import {SpectrumTimeFieldProps, TimeValue} from '@react-types/datepicker';
-import {useFocusManagerRef} from './utils';
+import {useFocusManagerRef, useFormattedDateWidth} from './utils';
+import {useFormProps} from '@react-spectrum/form';
 import {useLocale} from '@react-aria/i18n';
 import {useProviderProps} from '@react-spectrum/provider';
 import {useTimeField} from '@react-aria/datepicker';
@@ -26,6 +27,7 @@ import {useTimeFieldState} from '@react-stately/datepicker';
 
 function TimeField<T extends TimeValue>(props: SpectrumTimeFieldProps<T>, ref: FocusableRef<HTMLElement>) {
   props = useProviderProps(props);
+  props = useFormProps(props);
   let {
     autoFocus,
     isDisabled,
@@ -41,12 +43,16 @@ function TimeField<T extends TimeValue>(props: SpectrumTimeFieldProps<T>, ref: F
     locale
   });
 
-  let fieldRef = useRef(null);
-  let inputRef = useRef(null);
-  let {labelProps, fieldProps, inputProps, descriptionProps, errorMessageProps} = useTimeField({
+  let fieldRef = useRef<HTMLDivElement | null>(null);
+  let inputRef = useRef<HTMLInputElement | null>(null);
+  let {labelProps, fieldProps, inputProps, descriptionProps, errorMessageProps, isInvalid, validationErrors, validationDetails} = useTimeField({
     ...props,
     inputRef
   }, state, fieldRef);
+
+  let validationState = state.validationState || (isInvalid ? 'invalid' : null);
+
+  let approximateWidth = useFormattedDateWidth(state) + 'ch';
 
   return (
     <Field
@@ -56,7 +62,10 @@ function TimeField<T extends TimeValue>(props: SpectrumTimeFieldProps<T>, ref: F
       labelProps={labelProps}
       descriptionProps={descriptionProps}
       errorMessageProps={errorMessageProps}
-      validationState={state.validationState}
+      validationState={validationState ?? undefined}
+      isInvalid={isInvalid}
+      validationErrors={validationErrors}
+      validationDetails={validationDetails}
       wrapperClassName={classNames(datepickerStyles, 'react-spectrum-TimeField-fieldWrapper')}>
       <Input
         ref={fieldRef}
@@ -64,7 +73,8 @@ function TimeField<T extends TimeValue>(props: SpectrumTimeFieldProps<T>, ref: F
         isDisabled={isDisabled}
         isQuiet={isQuiet}
         autoFocus={autoFocus}
-        validationState={state.validationState}
+        validationState={validationState}
+        minWidth={approximateWidth}
         className={classNames(datepickerStyles, 'react-spectrum-TimeField')}>
         {state.segments.map((segment, i) =>
           (<DatePickerSegment

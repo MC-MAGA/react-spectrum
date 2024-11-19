@@ -10,9 +10,10 @@
  * governing permissions and limitations under the License.
  */
 
-import {act, fireEvent, render, within} from '@react-spectrum/test-utils';
+import {act, fireEvent, pointerMap, render, waitFor, within} from '@react-spectrum/test-utils-internal';
 import React from 'react';
 import {Tab, TabList, TabPanel, Tabs} from '../';
+import {TabsExample} from '../stories/Tabs.stories';
 import userEvent from '@testing-library/user-event';
 
 let renderTabs = (tabsProps, tablistProps, tabProps, tabpanelProps) => render(
@@ -29,6 +30,11 @@ let renderTabs = (tabsProps, tablistProps, tabProps, tabpanelProps) => render(
 );
 
 describe('Tabs', () => {
+  let user;
+  beforeAll(() => {
+    user = userEvent.setup({delay: null, pointerMap});
+  });
+
   it('should render tabs with default classes', () => {
     let {getByRole, getAllByRole} = renderTabs();
     let tablist = getByRole('tablist');
@@ -73,6 +79,21 @@ describe('Tabs', () => {
     expect(tabpanel).toHaveAttribute('data-test', 'tabpanel');
   });
 
+  it('should support aria props on the tabs', () => {
+    let {getAllByRole} = renderTabs({}, {}, {
+      'aria-label': 'label',
+      'aria-labelledby': 'labelledby',
+      'aria-describedby': 'describedby',
+      'aria-details': 'details'
+    }, {});
+    for (let tab of getAllByRole('tab')) {
+      expect(tab).toHaveAttribute('aria-label', 'label');
+      expect(tab).toHaveAttribute('aria-labelledby', 'labelledby');
+      expect(tab).toHaveAttribute('aria-describedby', 'describedby');
+      expect(tab).toHaveAttribute('aria-details', 'details');
+    }
+  });
+
   it('should support render props', () => {
     let {getByRole} = render(
       <Tabs orientation="horizontal">
@@ -94,35 +115,64 @@ describe('Tabs', () => {
     expect(tablist).toHaveAttribute('aria-label', 'Test horizontal');
   });
 
-  it('should support hover', () => {
-    let {getAllByRole} = renderTabs({}, {}, {className: ({isHovered}) => isHovered ? 'hover' : ''});
+  it('should support hover', async () => {
+    let onHoverStart = jest.fn();
+    let onHoverChange = jest.fn();
+    let onHoverEnd = jest.fn();
+    let {getAllByRole} = renderTabs({}, {}, {className: ({isHovered}) => isHovered ? 'hover' : '', onHoverStart, onHoverChange, onHoverEnd});
     let tab = getAllByRole('tab')[0];
 
     expect(tab).not.toHaveAttribute('data-hovered');
     expect(tab).not.toHaveClass('hover');
 
-    userEvent.hover(tab);
+    await user.hover(tab);
     expect(tab).toHaveAttribute('data-hovered', 'true');
     expect(tab).toHaveClass('hover');
+    expect(onHoverStart).toHaveBeenCalledTimes(1);
+    expect(onHoverChange).toHaveBeenCalledTimes(1);
 
-    userEvent.unhover(tab);
+    await user.unhover(tab);
     expect(tab).not.toHaveAttribute('data-hovered');
     expect(tab).not.toHaveClass('hover');
+    expect(onHoverEnd).toHaveBeenCalledTimes(1);
+    expect(onHoverChange).toHaveBeenCalledTimes(2);
   });
 
-  it('should support focus ring', () => {
+  it('should not show hover state when item is not interactive', async () => {
+    let onHoverStart = jest.fn();
+    let onHoverChange = jest.fn();
+    let onHoverEnd = jest.fn();
+    let {getAllByRole} = renderTabs({disabledKeys: ['a', 'b', 'c']}, {}, {className: ({isHovered}) => isHovered ? 'hover' : '', onHoverStart, onHoverChange, onHoverEnd});
+    let tab = getAllByRole('tab')[0];
+
+    expect(tab).not.toHaveAttribute('data-hovered');
+    expect(tab).not.toHaveClass('hover');
+    expect(onHoverStart).not.toHaveBeenCalled();
+    expect(onHoverChange).not.toHaveBeenCalled();
+    expect(onHoverEnd).not.toHaveBeenCalled();
+
+    await user.hover(tab);
+    expect(tab).not.toHaveAttribute('data-hovered');
+    expect(tab).not.toHaveClass('hover');
+    expect(onHoverStart).not.toHaveBeenCalled();
+    expect(onHoverChange).not.toHaveBeenCalled();
+    expect(onHoverEnd).not.toHaveBeenCalled();
+  });
+
+  it('should support focus ring', async () => {
     let {getAllByRole} = renderTabs({}, {}, {className: ({isFocusVisible}) => isFocusVisible ? 'focus' : ''});
     let tab = getAllByRole('tab')[0];
 
     expect(tab).not.toHaveAttribute('data-focus-visible');
     expect(tab).not.toHaveClass('focus');
 
-    userEvent.tab();
+    await user.tab();
     expect(document.activeElement).toBe(tab);
     expect(tab).toHaveAttribute('data-focus-visible', 'true');
+    expect(tab).toHaveAttribute('data-focused', 'true');
     expect(tab).toHaveClass('focus');
 
-    userEvent.tab();
+    await user.tab();
     expect(tab).not.toHaveAttribute('data-focus-visible');
     expect(tab).not.toHaveClass('focus');
   });
@@ -160,7 +210,62 @@ describe('Tabs', () => {
     expect(tab).toHaveClass('disabled');
   });
 
-  it('should support selected state', () => {
+  it('should support isDisabled prop on tab', async () => {
+    let {getAllByRole} = render(
+      <Tabs>
+        <TabList aria-label="Test">
+          <Tab id="a">A</Tab>
+          <Tab id="b" isDisabled>B</Tab>
+          <Tab id="c">C</Tab>
+        </TabList>
+        <TabPanel id="a">A</TabPanel>
+        <TabPanel id="b">B</TabPanel>
+        <TabPanel id="c">C</TabPanel>
+      </Tabs>
+    );
+    let items = getAllByRole('tab');
+    expect(items[1]).toHaveAttribute('aria-disabled', 'true');
+
+    await user.tab();
+    expect(document.activeElement).toBe(items[0]);
+    await user.keyboard('{ArrowRight}');
+    expect(document.activeElement).toBe(items[2]);
+  });
+
+  it('finds the first non-disabled tab', async () => {
+    let {getAllByRole} = render(
+      <Tabs>
+        <TabList aria-label="Test">
+          <Tab id="a" isDisabled>A</Tab>
+          <Tab id="b">B</Tab>
+          <Tab id="c">C</Tab>
+        </TabList>
+        <TabPanel id="a">A</TabPanel>
+        <TabPanel id="b">B</TabPanel>
+        <TabPanel id="c">C</TabPanel>
+      </Tabs>
+    );
+    let items = getAllByRole('tab');
+    expect(items[0]).toHaveAttribute('aria-disabled', 'true');
+
+    await user.tab();
+    expect(document.activeElement).toBe(items[1]);
+    await user.keyboard('{ArrowRight}');
+    expect(document.activeElement).toBe(items[2]);
+  });
+
+  it('selects first tab if all tabs are disabled', async () => {
+    let {getByRole} = renderTabs({}, {}, {isDisabled: true});
+    await user.tab();
+
+    let tablist = getByRole('tablist');
+    let tabs = within(tablist).getAllByRole('tab');
+    let tabpanel = getByRole('tabpanel');
+    expect(tabs[0]).toHaveAttribute('aria-selected', 'true');
+    expect(document.activeElement).toBe(tabpanel);
+  });
+
+  it('should support selected state', async () => {
     let onSelectionChange = jest.fn();
     let {getAllByRole} = renderTabs({onSelectionChange}, {}, {className: ({isSelected}) => isSelected ? 'selected' : ''});
     let tabs = getAllByRole('tab');
@@ -168,17 +273,45 @@ describe('Tabs', () => {
     expect(tabs[0]).toHaveAttribute('aria-selected', 'true');
     expect(tabs[0]).toHaveClass('selected');
 
-    userEvent.click(tabs[1]);
+    await user.click(tabs[1]);
     expect(onSelectionChange).toHaveBeenLastCalledWith('b');
     expect(tabs[0]).not.toHaveAttribute('aria-selected', 'true');
     expect(tabs[0]).not.toHaveClass('selected');
     expect(tabs[1]).toHaveAttribute('aria-selected', 'true');
     expect(tabs[1]).toHaveClass('selected');
 
-    userEvent.click(tabs[0]);
+    await user.click(tabs[0]);
     expect(onSelectionChange).toHaveBeenLastCalledWith('a');
     expect(tabs[0]).toHaveAttribute('aria-selected', 'true');
     expect(tabs[0]).toHaveClass('selected');
+  });
+
+  it('should update TabPanel ID when current tab is changed', async () => {
+    let onSelectionChange = jest.fn();
+    let {getByRole, getAllByRole} = render(
+      <Tabs onSelectionChange={onSelectionChange}>
+        <TabList>
+          <Tab id="first-element">First</Tab>
+          <Tab id="second-element">Second</Tab>
+          <Tab id="third-element">Third</Tab>
+        </TabList>
+        <TabPanel id="first-element">First</TabPanel>
+        <TabPanel id="second-element">Second</TabPanel>
+        <TabPanel id="third-element">Third</TabPanel>
+      </Tabs>
+    );
+
+    expect(getByRole('tabpanel').getAttribute('id')).toContain('first-element');
+    let tabs = getAllByRole('tab');
+
+    await user.click(tabs[1]);
+    expect(onSelectionChange).toHaveBeenCalled();
+    expect(getByRole('tabpanel').getAttribute('id')).toContain('second-element');
+
+    await user.click(tabs[2]);
+    expect(onSelectionChange).toHaveBeenCalled();
+    expect(getByRole('tabpanel').getAttribute('id')).toContain('third-element');
+
   });
 
   it('should support orientation', () => {
@@ -217,7 +350,12 @@ describe('Tabs', () => {
     expect(tabPanelRef.current).toBeInstanceOf(HTMLElement);
   });
 
-  it('should support shouldForceMount', () => {
+  it('should support shouldForceMount', async () => {
+    // Mock console.error for React Canary "Received the string `true` for the boolean attribute `inert`." warning
+    // In current React 18 version (18.1.0), the opposite error is thrown where it expects a non-boolean value for the same `inert` attribute
+    const consoleError = console.error;
+    console.error = jest.fn();
+
     let {getAllByRole} = renderTabs({}, {}, {}, {shouldForceMount: true});
     let tabpanels = document.querySelectorAll('.react-aria-TabPanel');
     expect(tabpanels).toHaveLength(3);
@@ -226,11 +364,12 @@ describe('Tabs', () => {
     expect(tabpanels[2]).toHaveAttribute('inert');
 
     let tabs = getAllByRole('tab');
-    userEvent.click(tabs[1]);
+    await user.click(tabs[1]);
 
     expect(tabpanels[0]).toHaveAttribute('inert');
     expect(tabpanels[1]).not.toHaveAttribute('inert');
     expect(tabpanels[2]).toHaveAttribute('inert');
+    console.error = consoleError;
   });
 
   it('should support keyboardActivation=manual', () => {
@@ -259,5 +398,80 @@ describe('Tabs', () => {
     expect(thirdItem).toHaveAttribute('aria-selected', 'true');
 
     expect(onSelectionChange).toBeCalledTimes(1);
+  });
+
+  it('should support tabs as links', async function () {
+    let {getAllByRole} = render(<TabsExample />);
+
+    let tabs = getAllByRole('tab');
+    expect(tabs[0].tagName).toBe('A');
+    expect(tabs[0]).toHaveAttribute('href', '/FoR');
+    expect(tabs[1].tagName).toBe('A');
+    expect(tabs[1]).toHaveAttribute('href', '/MaR');
+    expect(tabs[2].tagName).toBe('A');
+    expect(tabs[2]).toHaveAttribute('href', '/Emp');
+
+    expect(tabs[0]).toHaveAttribute('aria-selected', 'true');
+    await user.click(tabs[1]);
+    expect(tabs[1]).toHaveAttribute('aria-selected', 'true');
+
+    fireEvent.keyDown(tabs[1], {key: 'ArrowRight'});
+    expect(tabs[2]).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('should render tab with aria-label', () => {
+    let {getAllByRole} = render(
+      <Tabs>
+        <TabList>
+          <Tab id="a" aria-label="Tab A">A</Tab>
+          <Tab id="b" aria-label="Tab B">B</Tab>
+          <Tab id="c" aria-label="Tab C">C</Tab>
+        </TabList>
+        <TabPanel id="a">A</TabPanel>
+        <TabPanel id="b">B</TabPanel>
+        <TabPanel id="c">C</TabPanel>
+      </Tabs>
+    );
+
+    let tabs = getAllByRole('tab');
+    expect(tabs[0]).toHaveAttribute('aria-label', 'Tab A');
+    expect(tabs[1]).toHaveAttribute('aria-label', 'Tab B');
+    expect(tabs[2]).toHaveAttribute('aria-label', 'Tab C');
+  });
+
+  it('supports nested tabs', async () => {
+    let {getAllByRole} = render(
+      <Tabs>
+        <TabList>
+          <Tab id="foo">Foo</Tab>
+          <Tab id="bar">Bar</Tab>
+        </TabList>
+        <TabPanel id="foo">
+          <Tabs>
+            <TabList>
+              <Tab id="one">One</Tab>
+              <Tab id="two">Two</Tab>
+            </TabList>
+            <TabPanel id="one">One</TabPanel>
+            <TabPanel id="two">Two</TabPanel>
+          </Tabs>
+        </TabPanel>
+        <TabPanel id="bar">Bar</TabPanel>
+      </Tabs>
+    );
+
+    // Wait a tick for MutationObserver in useHasTabbableChild to fire.
+    // This avoids React's "update not wrapped in act" warning.
+    await waitFor(() => Promise.resolve());
+
+    let rootTabs = within(getAllByRole('tablist')[0]).getAllByRole('tab');
+    expect(rootTabs).toHaveLength(2);
+    expect(rootTabs[0]).toHaveTextContent('Foo');
+    expect(rootTabs[1]).toHaveTextContent('Bar');
+
+    let innerTabs = within(getAllByRole('tabpanel')[0]).getAllByRole('tab');
+    expect(innerTabs).toHaveLength(2);
+    expect(innerTabs[0]).toHaveTextContent('One');
+    expect(innerTabs[1]).toHaveTextContent('Two');
   });
 });

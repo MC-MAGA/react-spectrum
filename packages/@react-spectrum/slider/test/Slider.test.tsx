@@ -10,7 +10,7 @@
  * governing permissions and limitations under the License.
  */
 
-import {act, fireEvent, installMouseEvent, render} from '@react-spectrum/test-utils';
+import {act, fireEvent, installMouseEvent, pointerMap, render} from '@react-spectrum/test-utils-internal';
 import {press, testKeypresses} from './utils';
 import {Provider} from '@adobe/react-spectrum';
 import React, {useCallback, useState} from 'react';
@@ -19,6 +19,11 @@ import {theme} from '@react-spectrum/theme-default';
 import userEvent from '@testing-library/user-event';
 
 describe('Slider', function () {
+  let user;
+  beforeAll(() => {
+    user = userEvent.setup({delay: null, pointerMap});
+  });
+
   it('supports aria-label', function () {
     let {getByRole} = render(<Slider aria-label="The Label" />);
 
@@ -36,7 +41,7 @@ describe('Slider', function () {
     let {getByRole} = render(<Slider label="The Label" />);
 
     let group = getByRole('group');
-    let labelId = group.getAttribute('aria-labelledby');
+    let labelId = group.getAttribute('aria-labelledby')!;
     let slider = getByRole('slider');
     expect(slider.getAttribute('aria-labelledby')).toBe(labelId);
     expect(slider).toHaveAttribute('aria-valuetext', '0');
@@ -65,7 +70,7 @@ describe('Slider', function () {
     expect(queryByRole('status')).toBeNull();
   });
 
-  it('supports disabled', function () {
+  it('supports disabled', async function () {
     let {getByRole, getAllByRole} = render(<div>
       <button>A</button>
       <Slider label="The Label" defaultValue={20} isDisabled />
@@ -76,13 +81,13 @@ describe('Slider', function () {
     let [buttonA, buttonB] = getAllByRole('button');
     expect(slider).toBeDisabled();
 
-    userEvent.tab();
+    await user.tab();
     expect(document.activeElement).toBe(buttonA);
-    userEvent.tab();
+    await user.tab();
     expect(document.activeElement).toBe(buttonB);
   });
 
-  it('can be focused', function () {
+  it('can be focused', async function () {
     let {getByRole, getAllByRole} = render(<div>
       <button>A</button>
       <Slider label="The Label" defaultValue={20} />
@@ -96,10 +101,10 @@ describe('Slider', function () {
     });
 
     expect(document.activeElement).toBe(slider);
-    userEvent.tab();
+    await user.tab();
     expect(document.activeElement).toBe(buttonB);
-    userEvent.tab({shift: true});
-    userEvent.tab({shift: true});
+    await user.tab({shift: true});
+    await user.tab({shift: true});
     expect(document.activeElement).toBe(buttonA);
   });
 
@@ -118,8 +123,29 @@ describe('Slider', function () {
     expect(output).toHaveTextContent('40');
   });
 
+  it.each`
+  Name                            | props                                        | expected
+  ${'defaultValue minValue'}      | ${{defaultValue: 20, minValue: 50}}          | ${'50'}
+  ${'defaultValue maxValue'}      | ${{defaultValue: 20, maxValue: 10}}          | ${'10'}
+  ${'defaultValue minValue step'} | ${{defaultValue: 20, minValue: 50, step: 3}} | ${'50'}
+  ${'defaultValue maxValue step'} | ${{defaultValue: 20, maxValue: 10, step: 3}} | ${'9'}
+  ${'value minValue'}             | ${{value: 20, minValue: 50}}                 | ${'50'}
+  ${'value maxValue'}             | ${{value: 20, maxValue: 10}}                 | ${'10'}
+  ${'value minValue step'}        | ${{value: 20, minValue: 50, step: 3}}        | ${'50'}
+  ${'value maxValue step'}        | ${{value: 20, maxValue: 10, step: 3}}        | ${'9'}
+  `('clamps value & defaultValue to the allowed range $Name', function ({props, expected}) {
+    let {getByRole} = render(<Slider label="The Label" {...props} />);
+
+    let slider = getByRole('slider');
+    let output = getByRole('status');
+
+    expect(slider).toHaveProperty('value', expected);
+    expect(slider).toHaveAttribute('aria-valuetext', expected);
+    expect(output).toHaveTextContent(expected);
+  });
+
   it('can be controlled', function () {
-    let setValues = [];
+    let setValues: any[] = [];
 
     function Test() {
       let [value, _setValue] = useState(50);
@@ -173,7 +199,7 @@ describe('Slider', function () {
     expect(input).toHaveValue('10');
   });
 
-  it('supports form reset', () => {
+  it('supports form reset', async () => {
     function Test() {
       let [value, setValue] = React.useState(10);
       return (
@@ -194,7 +220,7 @@ describe('Slider', function () {
     expect(input).toHaveValue('55');
 
     let button = getByTestId('reset');
-    act(() => userEvent.click(button));
+    await user.click(button);
     expect(input).toHaveValue('10');
   });
 
@@ -367,8 +393,11 @@ describe('Slider', function () {
 
   describe('mouse interactions', () => {
     beforeAll(() => {
-      // @ts-ignore
-      jest.spyOn(window.HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(() => ({top: 0, left: 0, width: 100, height: 100}));
+      let originalGetBoundingClientRect = window.HTMLElement.prototype.getBoundingClientRect;
+      jest.spyOn(window.HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+        let rect = originalGetBoundingClientRect.call(this);
+        return {...rect, top: 0, left: 0, width: 100, height: 100};
+      });
     });
 
     installMouseEvent();
@@ -383,7 +412,7 @@ describe('Slider', function () {
       );
 
       let slider = getByRole('slider');
-      let thumb = slider.parentElement;
+      let thumb = slider.parentElement!;
       fireEvent.mouseDown(thumb, {clientX: 50, pageX: 50});
       expect(onChangeSpy).not.toHaveBeenCalled();
       expect(document.activeElement).toBe(slider);
@@ -412,7 +441,7 @@ describe('Slider', function () {
       );
 
       let slider = getByRole('slider');
-      let thumb = slider.parentElement;
+      let thumb = slider.parentElement!;
       fireEvent.mouseDown(thumb, {clientX: 50, pageX: 50});
       expect(onChangeSpy).not.toHaveBeenCalled();
       expect(document.activeElement).not.toBe(slider);
@@ -432,9 +461,8 @@ describe('Slider', function () {
       );
 
       let slider = getByRole('slider');
-      let thumb = slider.parentElement.parentElement;
-      // @ts-ignore
-      let [leftTrack, rightTrack] = [...thumb.parentElement.children].filter(c => c !== thumb);
+      let thumb = slider.parentElement!.parentElement!;
+      let [leftTrack, rightTrack] = [...thumb.parentElement!.children].filter(c => c !== thumb);
 
       // left track
       fireEvent.mouseDown(leftTrack, {clientX: 20, pageX: 20});
@@ -465,9 +493,8 @@ describe('Slider', function () {
       );
 
       let slider = getByRole('slider');
-      let thumb = slider.parentElement.parentElement;
-      // @ts-ignore
-      let [leftTrack, rightTrack] = [...thumb.parentElement.children].filter(c => c !== thumb);
+      let thumb = slider.parentElement!.parentElement!;
+      let [leftTrack, rightTrack] = [...thumb.parentElement!.children].filter(c => c !== thumb);
 
       // left track
       fireEvent.mouseDown(leftTrack, {clientX: 20, pageX: 20});
@@ -514,9 +541,8 @@ describe('Slider', function () {
       );
 
       let slider = getByRole('slider');
-      let thumb = slider.parentElement.parentElement;
-      // @ts-ignore
-      let [, rightTrack] = [...thumb.parentElement.children].filter(c => c !== thumb);
+      let thumb = slider.parentElement!.parentElement!;
+      let [, rightTrack] = [...thumb.parentElement!.children].filter(c => c !== thumb);
 
       fireEvent.touchStart(thumb, {changedTouches: [{identifier: 1, clientX: 50, pageX: 50}]});
       expect(onChangeSpy).toHaveBeenCalledTimes(0);

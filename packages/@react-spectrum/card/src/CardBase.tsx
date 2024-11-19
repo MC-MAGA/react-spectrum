@@ -1,3 +1,4 @@
+// @ts-nocheck
 /*
  * Copyright 2021 Adobe. All rights reserved.
  * This file is licensed to you under the Apache License, Version 2.0 (the "License");
@@ -49,7 +50,7 @@ function CardBase<T extends object>(props: CardBaseProps<T>, ref: DOMRef<HTMLDiv
   let {styleProps} = useStyleProps(props);
   let {cardProps, titleProps, contentProps} = useCard(props);
   let domRef = useDOMRef(ref);
-  let gridRef = useRef<HTMLDivElement>();
+  let gridRef = useRef<HTMLDivElement>(undefined);
   let checkboxRef = useRef(null);
 
   // cards are only interactive if there is a selection manager and it allows selection

@@ -10,12 +10,18 @@
  * governing permissions and limitations under the License.
  */
 
-import {Button, ButtonContext} from '../';
-import {fireEvent, render} from '@react-spectrum/test-utils';
-import React from 'react';
+import {Button, ButtonContext, ProgressBar, Text} from '../';
+import {fireEvent, pointerMap, render} from '@react-spectrum/test-utils-internal';
+import React, {useState} from 'react';
 import userEvent from '@testing-library/user-event';
 
 describe('Button', () => {
+  let user;
+  beforeAll(() => {
+    user = userEvent.setup({delay: null, pointerMap});
+    jest.useFakeTimers();
+  });
+
   it('should render a button with default class', () => {
     let {getByRole} = render(<Button>Test</Button>);
     let button = getByRole('button');
@@ -53,35 +59,42 @@ describe('Button', () => {
     expect(button).toHaveAttribute('aria-label', 'test');
   });
 
-  it('should support hover', () => {
-    let {getByRole} = render(<Button className={({isHovered}) => isHovered ? 'hover' : ''}>Test</Button>);
+  it('should support hover', async () => {
+    let hoverStartSpy = jest.fn();
+    let hoverChangeSpy = jest.fn();
+    let hoverEndSpy = jest.fn();
+    let {getByRole} = render(<Button className={({isHovered}) => isHovered ? 'hover' : ''} onHoverStart={hoverStartSpy} onHoverChange={hoverChangeSpy} onHoverEnd={hoverEndSpy}>Test</Button>);
     let button = getByRole('button');
 
     expect(button).not.toHaveAttribute('data-hovered');
     expect(button).not.toHaveClass('hover');
 
-    userEvent.hover(button);
+    await user.hover(button);
     expect(button).toHaveAttribute('data-hovered', 'true');
     expect(button).toHaveClass('hover');
+    expect(hoverStartSpy).toHaveBeenCalledTimes(1);
+    expect(hoverChangeSpy).toHaveBeenCalledTimes(1);
 
-    userEvent.unhover(button);
+    await user.unhover(button);
     expect(button).not.toHaveAttribute('data-hovered');
     expect(button).not.toHaveClass('hover');
+    expect(hoverEndSpy).toHaveBeenCalledTimes(1);
+    expect(hoverChangeSpy).toHaveBeenCalledTimes(2);
   });
 
-  it('should support focus ring', () => {
+  it('should support focus ring', async () => {
     let {getByRole} = render(<Button className={({isFocusVisible}) => isFocusVisible ? 'focus' : ''}>Test</Button>);
     let button = getByRole('button');
 
     expect(button).not.toHaveAttribute('data-focus-visible');
     expect(button).not.toHaveClass('focus');
 
-    userEvent.tab();
+    await user.tab();
     expect(document.activeElement).toBe(button);
     expect(button).toHaveAttribute('data-focus-visible', 'true');
     expect(button).toHaveClass('focus');
 
-    userEvent.tab();
+    await user.tab();
     expect(button).not.toHaveAttribute('data-focus-visible');
     expect(button).not.toHaveClass('focus');
   });
@@ -124,5 +137,64 @@ describe('Button', () => {
 
     fireEvent.mouseUp(button);
     expect(button).toHaveTextContent('Test');
+  });
+
+  // isPending state
+  it('displays a spinner when isPending prop is true', async function () {
+    let onPressSpy = jest.fn();
+    function TestComponent() {
+      let [pending, setPending] = useState(false);
+      return (
+        <Button
+          onPress={() => {
+            setPending(true);
+            onPressSpy();
+          }}
+          isPending={pending}>
+          {({isPending}) => (
+            <>
+              <Text style={{opacity: isPending ? '0' : undefined}}>Test</Text>
+              <ProgressBar
+                aria-label="loading"
+                style={{opacity: isPending ? undefined : '0'}}
+                isIndeterminate>
+                loading
+              </ProgressBar>
+            </>
+          )}
+        </Button>
+      );
+    }
+    let {getByRole} = render(<TestComponent />);
+    let button = getByRole('button');
+    expect(button).not.toHaveAttribute('aria-disabled');
+    await user.click(button);
+    // Button is disabled immediately, but spinner visibility is delayed
+    expect(button).toHaveAttribute('aria-disabled', 'true');
+    // Multiple clicks shouldn't call onPressSpy
+    await user.click(button);
+    expect(button).toHaveAttribute('aria-disabled', 'true');
+    expect(onPressSpy).toHaveBeenCalledTimes(1);
+  });
+
+  // isPending anchor element
+  it('removes href attribute from anchor element when isPending is true', () => {
+    let {getByRole} = render(
+      <Button href="//example.com" isPending>
+        {({isPending}) => (
+          <>
+            <Text style={{visibility: isPending ? 'hidden' : undefined}}>Click me</Text>
+            <ProgressBar
+              aria-label="loading"
+              style={{visibility: isPending ? undefined : 'hidden'}}
+              isIndeterminate>
+              loading
+            </ProgressBar>
+          </>
+        )}
+      </Button>
+    );
+    let button = getByRole('button');
+    expect(button).not.toHaveAttribute('href');
   });
 });

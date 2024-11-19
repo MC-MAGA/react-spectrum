@@ -21,12 +21,14 @@ import {Input} from './Input';
 import React, {ReactElement, useRef} from 'react';
 import {useDateField} from '@react-aria/datepicker';
 import {useDateFieldState} from '@react-stately/datepicker';
-import {useFocusManagerRef, useFormatHelpText} from './utils';
+import {useFocusManagerRef, useFormatHelpText, useFormattedDateWidth} from './utils';
+import {useFormProps} from '@react-spectrum/form';
 import {useLocale} from '@react-aria/i18n';
 import {useProviderProps} from '@react-spectrum/provider';
 
 function DateField<T extends DateValue>(props: SpectrumDateFieldProps<T>, ref: FocusableRef<HTMLElement>) {
   props = useProviderProps(props);
+  props = useFormProps(props);
   let {
     autoFocus,
     isDisabled,
@@ -43,9 +45,9 @@ function DateField<T extends DateValue>(props: SpectrumDateFieldProps<T>, ref: F
     createCalendar
   });
 
-  let fieldRef = useRef(null);
-  let inputRef = useRef(null);
-  let {labelProps, fieldProps, inputProps, descriptionProps, errorMessageProps} = useDateField({
+  let fieldRef = useRef<HTMLElement | null>(null);
+  let inputRef = useRef<HTMLInputElement | null>(null);
+  let {labelProps, fieldProps, inputProps, descriptionProps, errorMessageProps, isInvalid, validationErrors, validationDetails} = useDateField({
     ...props,
     inputRef
   }, state, fieldRef);
@@ -54,8 +56,12 @@ function DateField<T extends DateValue>(props: SpectrumDateFieldProps<T>, ref: F
   // The format help text is unnecessary for screen reader users because each segment already has a label.
   let description = useFormatHelpText(props);
   if (description && !props.description) {
-    descriptionProps.id = null;
+    descriptionProps.id = undefined;
   }
+
+  let validationState = state.validationState || (isInvalid ? 'invalid' : null);
+
+  let approximateWidth = useFormattedDateWidth(state) + 'ch';
 
   return (
     <Field
@@ -66,7 +72,10 @@ function DateField<T extends DateValue>(props: SpectrumDateFieldProps<T>, ref: F
       labelProps={labelProps}
       descriptionProps={descriptionProps}
       errorMessageProps={errorMessageProps}
-      validationState={state.validationState}
+      validationState={validationState ?? undefined}
+      isInvalid={isInvalid}
+      validationErrors={validationErrors}
+      validationDetails={validationDetails}
       wrapperClassName={classNames(datepickerStyles, 'react-spectrum-Datepicker-fieldWrapper')}>
       <Input
         ref={fieldRef}
@@ -74,7 +83,8 @@ function DateField<T extends DateValue>(props: SpectrumDateFieldProps<T>, ref: F
         isDisabled={isDisabled}
         isQuiet={isQuiet}
         autoFocus={autoFocus}
-        validationState={state.validationState}
+        validationState={validationState}
+        minWidth={approximateWidth}
         className={classNames(datepickerStyles, 'react-spectrum-DateField')}>
         {state.segments.map((segment, i) =>
           (<DatePickerSegment

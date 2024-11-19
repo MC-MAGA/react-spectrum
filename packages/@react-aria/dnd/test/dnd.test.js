@@ -11,7 +11,7 @@
  */
 
 jest.mock('@react-aria/live-announcer');
-import {act, fireEvent, render} from '@react-spectrum/test-utils';
+import {act, fireEvent, pointerMap, render} from '@react-spectrum/test-utils-internal';
 import {announce} from '@react-aria/live-announcer';
 import {CUSTOM_DRAG_TYPE} from '../src/constants';
 import {DataTransfer, DataTransferItem, DragEvent, FileSystemDirectoryEntry, FileSystemFileEntry} from './mocks';
@@ -35,6 +35,11 @@ function pointerEvent(type, opts) {
 }
 
 describe('useDrag and useDrop', function () {
+  let user;
+  beforeAll(() => {
+    user = userEvent.setup({delay: null, pointerMap});
+  });
+
   beforeEach(() => {
     jest.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(() => ({
       left: 0,
@@ -145,6 +150,64 @@ describe('useDrag and useDrop', function () {
         y: 2,
         dropOperation: 'move'
       });
+    });
+
+    it('useDrag should support isDisabled', async () => {
+      let onDragStart = jest.fn();
+      let onDragMove = jest.fn();
+      let onDragEnd = jest.fn();
+      let onDropEnter = jest.fn();
+      let onDropMove = jest.fn();
+      let onDrop = jest.fn();
+      let tree = render(<>
+        <Draggable isDisabled onDragStart={onDragStart} onDragMove={onDragMove} onDragEnd={onDragEnd} />
+        <Droppable onDropEnter={onDropEnter} onDropMove={onDropMove} onDrop={onDrop} />
+      </>);
+      let draggable = tree.getByText('Drag me');
+      let droppable = tree.getByText('Drop here');
+      expect(draggable).toHaveAttribute('draggable', 'false');
+
+      let dataTransfer = new DataTransfer();
+      fireEvent(draggable, new DragEvent('dragstart', {dataTransfer, clientX: 0, clientY: 0}));
+      act(() => jest.runAllTimers());
+      expect(draggable).toHaveAttribute('data-dragging', 'false');
+      expect(droppable).toHaveAttribute('data-droptarget', 'false');
+
+      expect(onDragStart).not.toHaveBeenCalled();
+      expect(onDragMove).not.toHaveBeenCalled();
+      expect(onDragEnd).not.toHaveBeenCalled();
+      expect(onDropEnter).not.toHaveBeenCalled();
+      expect(onDropMove).not.toHaveBeenCalled();
+      expect(onDrop).not.toHaveBeenCalled();
+    });
+
+    it('useDrop should support isDisabled', async () => {
+      let onDragStart = jest.fn();
+      let onDragMove = jest.fn();
+      let onDragEnd = jest.fn();
+      let onDropEnter = jest.fn();
+      let onDropMove = jest.fn();
+      let onDrop = jest.fn();
+      let tree = render(<>
+        <Draggable onDragStart={onDragStart} onDragMove={onDragMove} onDragEnd={onDragEnd} />
+        <Droppable isDisabled onDropEnter={onDropEnter} onDropMove={onDropMove} onDrop={onDrop} />
+      </>);
+      let draggable = tree.getByText('Drag me');
+      let droppable = tree.getByText('Drop here');
+      expect(droppable).toHaveAttribute('data-droptarget', 'false');
+      
+      let dataTransfer = new DataTransfer();
+      fireEvent(draggable, new DragEvent('dragstart', {dataTransfer, clientX: 0, clientY: 0}));
+      act(() => jest.runAllTimers());
+      expect(draggable).toHaveAttribute('data-dragging', 'true');
+      expect(droppable).toHaveAttribute('data-droptarget', 'false');
+      
+      expect(onDragStart).toHaveBeenCalledTimes(1);
+      expect(onDragMove).not.toHaveBeenCalled();
+      expect(onDragEnd).not.toHaveBeenCalled();
+      expect(onDropEnter).not.toHaveBeenCalled();
+      expect(onDropMove).not.toHaveBeenCalled();
+      expect(onDrop).not.toHaveBeenCalled();
     });
 
     describe('events', () => {
@@ -1291,9 +1354,8 @@ describe('useDrag and useDrop', function () {
   });
 
   describe('keyboard', () => {
-    afterEach(() => {
-      fireEvent.keyDown(document.body, {key: 'Escape'});
-      fireEvent.keyUp(document.body, {key: 'Escape'});
+    afterEach(async () => {
+      await user.keyboard('{Escape}');
       act(() => jest.runAllTimers());
     });
 
@@ -1323,14 +1385,13 @@ describe('useDrag and useDrop', function () {
       expect(droppable).toHaveAttribute('data-droptarget', 'false');
       expect(droppable2).toHaveAttribute('data-droptarget', 'false');
 
-      userEvent.tab();
+      await user.tab();
 
       expect(document.activeElement).toBe(draggable);
       expect(draggable).toHaveAttribute('aria-describedby');
       expect(document.getElementById(draggable.getAttribute('aria-describedby'))).toHaveTextContent('Press Enter to start dragging');
 
-      fireEvent.keyDown(draggable, {key: 'Enter'});
-      fireEvent.keyUp(draggable, {key: 'Enter'});
+      await user.keyboard('{Enter}');
 
       expect(draggable).toHaveAttribute('data-dragging', 'true');
       expect(onDragStart).toHaveBeenCalledTimes(1);
@@ -1358,7 +1419,7 @@ describe('useDrag and useDrop', function () {
       expect(droppable).toHaveAttribute('data-droptarget', 'true');
       expect(droppable2).toHaveAttribute('data-droptarget', 'false');
 
-      userEvent.tab();
+      await user.tab();
 
       expect(document.activeElement).toBe(droppable2);
       expect(droppable2).toHaveAttribute('aria-describedby');
@@ -1384,8 +1445,7 @@ describe('useDrag and useDrop', function () {
       expect(droppable).toHaveAttribute('data-droptarget', 'false');
       expect(droppable2).toHaveAttribute('data-droptarget', 'true');
 
-      fireEvent.keyDown(droppable2, {key: 'Enter'});
-      fireEvent.keyUp(droppable2, {key: 'Enter'});
+      await user.keyboard('{Enter}');
 
       expect(document.activeElement).toBe(droppable2);
       expect(droppable).not.toHaveAttribute('aria-describedby');
@@ -1431,8 +1491,78 @@ describe('useDrag and useDrop', function () {
       expect(droppable2).toHaveAttribute('data-droptarget', 'false');
     });
 
+    it('useDrag should support isDisabled', async () => {
+      let onDragStart = jest.fn();
+      let onDragMove = jest.fn();
+      let onDragEnd = jest.fn();
+      let onDropEnter = jest.fn();
+      let onDropMove = jest.fn();
+      let onDropExit = jest.fn();
+      let onDrop = jest.fn();
+      let tree = render(<>
+        <Draggable isDisabled onDragStart={onDragStart} onDragMove={onDragMove} onDragEnd={onDragEnd} />
+        <Droppable onDropEnter={onDropEnter} onDropMove={onDropMove} onDrop={onDrop} onDropExit={onDropExit} />
+      </>);
+      let draggable = tree.getByText('Drag me');
+      let droppable = tree.getByText('Drop here');
+      expect(draggable).toHaveAttribute('draggable', 'false');
+      expect(draggable).toHaveAttribute('data-dragging', 'false');
+
+      await user.tab();
+      expect(document.activeElement).toBe(draggable);
+      expect(draggable).not.toHaveAttribute('aria-describedby');
+
+      await user.keyboard('{Enter}');
+      act(() => jest.runAllTimers());
+
+      expect(document.activeElement).toBe(draggable);
+      expect(draggable).toHaveAttribute('data-dragging', 'false');
+      expect(droppable).toHaveAttribute('data-droptarget', 'false');
+      expect(onDragStart).not.toHaveBeenCalled();
+      expect(onDragMove).not.toHaveBeenCalled();
+      expect(onDragEnd).not.toHaveBeenCalled();
+      expect(onDropEnter).not.toHaveBeenCalled();
+      expect(onDropMove).not.toHaveBeenCalled();
+      expect(onDropExit).not.toHaveBeenCalled();
+      expect(onDrop).not.toHaveBeenCalled();
+    });
+
+    it('useDrop should support isDisabled', async () => {
+      let onDragStart = jest.fn();
+      let onDragMove = jest.fn();
+      let onDragEnd = jest.fn();
+      let onDropEnter = jest.fn();
+      let onDropMove = jest.fn();
+      let onDropExit = jest.fn();
+      let onDrop = jest.fn();
+      let tree = render(<>
+        <Draggable onDragStart={onDragStart} onDragMove={onDragMove} onDragEnd={onDragEnd} />
+        <Droppable isDisabled onDropEnter={onDropEnter} onDropMove={onDropMove} onDrop={onDrop} onDropExit={onDropExit} />
+      </>);
+      let draggable = tree.getByText('Drag me');
+      let droppable = tree.getByText('Drop here');
+      expect(droppable).toHaveAttribute('data-droptarget', 'false');
+
+      await user.tab();
+      expect(document.activeElement).toBe(draggable);
+
+      await user.keyboard('{Enter}');
+      act(() => jest.runAllTimers());
+
+      expect(document.activeElement).toBe(draggable);
+      expect(droppable).toHaveAttribute('data-droptarget', 'false');
+
+      expect(onDragStart).toHaveBeenCalledTimes(1);
+      expect(onDragMove).not.toHaveBeenCalled();
+      expect(onDragEnd).not.toHaveBeenCalled();
+      expect(onDropEnter).not.toHaveBeenCalled();
+      expect(onDropMove).not.toHaveBeenCalled();
+      expect(onDropExit).not.toHaveBeenCalled();
+      expect(onDrop).not.toHaveBeenCalled();
+    });
+
     describe('keyboard navigation', () => {
-      it('should Tab forward and skip non drop target elements', () => {
+      it('should Tab forward and skip non drop target elements', async () => {
         let tree = render(<>
           <Draggable />
           <input />
@@ -1446,22 +1576,21 @@ describe('useDrag and useDrop', function () {
         let droppable = tree.getByText('Drop here');
         let droppable2 = tree.getByText('Drop here 2');
 
-        userEvent.tab();
+        await user.tab();
         expect(document.activeElement).toBe(draggable);
 
-        fireEvent.keyDown(draggable, {key: 'Enter'});
-        fireEvent.keyUp(draggable, {key: 'Enter'});
+        await user.keyboard('{Enter}');
         act(() => jest.runAllTimers());
         expect(document.activeElement).toBe(droppable);
 
-        userEvent.tab();
+        await user.tab();
         expect(document.activeElement).toBe(droppable2);
 
-        userEvent.tab();
+        await user.tab();
         expect(document.activeElement).toBe(draggable);
       });
 
-      it('should Tab backward and skip non drop target elements', () => {
+      it('should Tab backward and skip non drop target elements', async () => {
         let tree = render(<>
           <Draggable />
           <input />
@@ -1475,25 +1604,24 @@ describe('useDrag and useDrop', function () {
         let droppable = tree.getByText('Drop here');
         let droppable2 = tree.getByText('Drop here 2');
 
-        userEvent.tab();
+        await user.tab();
         expect(document.activeElement).toBe(draggable);
 
-        fireEvent.keyDown(draggable, {key: 'Enter'});
-        fireEvent.keyUp(draggable, {key: 'Enter'});
+        await user.keyboard('{Enter}');
         act(() => jest.runAllTimers());
         expect(document.activeElement).toBe(droppable);
 
-        userEvent.tab({shift: true});
+        await user.tab({shift: true});
         expect(document.activeElement).toBe(draggable);
 
-        userEvent.tab({shift: true});
+        await user.tab({shift: true});
         expect(document.activeElement).toBe(droppable2);
 
-        userEvent.tab({shift: true});
+        await user.tab({shift: true});
         expect(document.activeElement).toBe(droppable);
       });
 
-      it('should cancel the drag when pressing the escape key', () => {
+      it('should cancel the drag when pressing the escape key', async () => {
         let tree = render(<>
           <Draggable />
           <Droppable />
@@ -1502,22 +1630,20 @@ describe('useDrag and useDrop', function () {
         let draggable = tree.getByText('Drag me');
         let droppable = tree.getByText('Drop here');
 
-        userEvent.tab();
+        await user.tab();
         expect(document.activeElement).toBe(draggable);
 
-        fireEvent.keyDown(draggable, {key: 'Enter'});
-        fireEvent.keyUp(draggable, {key: 'Enter'});
+        await user.keyboard('{Enter}');
         act(() => jest.runAllTimers());
         expect(document.activeElement).toBe(droppable);
 
-        fireEvent.keyDown(droppable, {key: 'Escape'});
-        fireEvent.keyUp(droppable, {key: 'Escape'});
+        await user.keyboard('{Escape}');
         expect(document.activeElement).toBe(draggable);
 
         expect(announce).toHaveBeenCalledWith('Drop canceled.');
       });
 
-      it('should cancel the drag when pressing Enter on the original drag target', () => {
+      it('should cancel the drag when pressing Enter on the original drag target', async () => {
         let onDragStart = jest.fn();
         let onDragEnd = jest.fn();
         let tree = render(<>
@@ -1528,20 +1654,18 @@ describe('useDrag and useDrop', function () {
         let draggable = tree.getByText('Drag me');
         let droppable = tree.getByText('Drop here');
 
-        userEvent.tab();
+        await user.tab();
         expect(document.activeElement).toBe(draggable);
 
-        fireEvent.keyDown(draggable, {key: 'Enter'});
-        fireEvent.keyUp(draggable, {key: 'Enter'});
+        await user.keyboard('{Enter}');
         act(() => jest.runAllTimers());
         expect(document.activeElement).toBe(droppable);
         expect(onDragStart).toHaveBeenCalledTimes(1);
 
-        userEvent.tab();
+        await user.tab();
         expect(document.activeElement).toBe(draggable);
 
-        fireEvent.keyDown(draggable, {key: 'Enter'});
-        fireEvent.keyUp(draggable, {key: 'Enter'});
+        await user.keyboard('{Enter}');
         act(() => jest.runAllTimers());
         expect(document.activeElement).toBe(draggable);
 
@@ -1549,7 +1673,7 @@ describe('useDrag and useDrop', function () {
         expect(onDragStart).toHaveBeenCalledTimes(1);
       });
 
-      it('should handle when a drop target is removed', () => {
+      it('should handle when a drop target is removed', async () => {
         let tree = render(<>
           <Draggable />
           <Droppable />
@@ -1559,11 +1683,10 @@ describe('useDrag and useDrop', function () {
         let draggable = tree.getByText('Drag me');
         let droppable = tree.getByText('Drop here');
 
-        userEvent.tab();
+        await user.tab();
         expect(document.activeElement).toBe(draggable);
 
-        fireEvent.keyDown(draggable, {key: 'Enter'});
-        fireEvent.keyUp(draggable, {key: 'Enter'});
+        await user.keyboard('{Enter}');
         act(() => jest.runAllTimers());
         expect(document.activeElement).toBe(droppable);
 
@@ -1575,7 +1698,7 @@ describe('useDrag and useDrop', function () {
         expect(document.activeElement).toBe(tree.getByText('Drop here 2'));
       });
 
-      it('should ignore drop targets in aria-hidden trees', () => {
+      it('should ignore drop targets in aria-hidden trees', async () => {
         let tree = render(<>
           <Draggable />
           <div aria-hidden="true">
@@ -1587,11 +1710,10 @@ describe('useDrag and useDrop', function () {
         let draggable = tree.getByText('Drag me');
         let droppable2 = tree.getByText('Drop here 2');
 
-        userEvent.tab();
+        await user.tab();
         expect(document.activeElement).toBe(draggable);
 
-        fireEvent.keyDown(draggable, {key: 'Enter'});
-        fireEvent.keyUp(draggable, {key: 'Enter'});
+        await user.keyboard('{Enter}');
         act(() => {jest.runAllTimers();});
         expect(document.activeElement).toBe(droppable2);
       });
@@ -1613,15 +1735,14 @@ describe('useDrag and useDrop', function () {
         let droppable = tree.getByText('Drop here');
         let droppable2 = tree.getByText('Drop here 2');
 
-        userEvent.tab();
+        await user.tab();
         expect(document.activeElement).toBe(draggable);
 
-        fireEvent.keyDown(draggable, {key: 'Enter'});
-        fireEvent.keyUp(draggable, {key: 'Enter'});
+        await user.keyboard('{Enter}');
         act(() => jest.runAllTimers());
         expect(document.activeElement).toBe(droppable);
 
-        userEvent.tab();
+        await user.tab();
         expect(document.activeElement).toBe(droppable2);
         // wait for the mutation observer I believe
         await act(async () =>
@@ -1630,11 +1751,11 @@ describe('useDrag and useDrop', function () {
         expect(tree.getAllByRole('button')).toHaveLength(2);
         expect(document.activeElement).toBe(droppable);
 
-        userEvent.tab();
+        await user.tab();
         expect(document.activeElement).toBe(draggable);
       });
 
-      it('should not tab to the original draggable element if it is in an aria-hidden tree', () => {
+      it('should not tab to the original draggable element if it is in an aria-hidden tree', async () => {
         let Test = () => {
           let [hidden, setHidden] = React.useState(false);
           return (<>
@@ -1652,28 +1773,27 @@ describe('useDrag and useDrop', function () {
         let droppable = tree.getByText('Drop here');
         let droppable2 = tree.getByText('Drop here 2');
 
-        userEvent.tab();
+        await user.tab();
         expect(document.activeElement).toBe(draggable);
 
-        fireEvent.keyDown(draggable, {key: 'Enter'});
-        fireEvent.keyUp(draggable, {key: 'Enter'});
+        await user.keyboard('{Enter}');
         act(() => jest.runAllTimers());
         expect(document.activeElement).toBe(droppable);
 
-        userEvent.tab();
+        await user.tab();
         expect(document.activeElement).toBe(droppable2);
 
-        userEvent.tab();
+        await user.tab();
         expect(document.activeElement).toBe(droppable);
 
-        userEvent.tab({shift: true});
+        await user.tab({shift: true});
         expect(document.activeElement).toBe(droppable2);
 
-        userEvent.tab({shift: true});
+        await user.tab({shift: true});
         expect(document.activeElement).toBe(droppable);
       });
 
-      it('should not restore focus to the original draggable element on Escape if it is in an aria-hidden tree', () => {
+      it('should not restore focus to the original draggable element on Escape if it is in an aria-hidden tree', async () => {
         let Test = () => {
           let [hidden, setHidden] = React.useState(false);
           return (<>
@@ -1689,17 +1809,15 @@ describe('useDrag and useDrop', function () {
         let draggable = tree.getByText('Drag me');
         let droppable = tree.getByText('Drop here');
 
-        userEvent.tab();
+        await user.tab();
         expect(document.activeElement).toBe(draggable);
 
-        fireEvent.keyDown(draggable, {key: 'Enter'});
-        fireEvent.keyUp(draggable, {key: 'Enter'});
+        await user.keyboard('{Enter}');
         act(() => jest.runAllTimers());
         expect(document.activeElement).toBe(droppable);
         expect(droppable).toHaveAttribute('data-droptarget', 'true');
 
-        fireEvent.keyDown(droppable, {key: 'Escape'});
-        fireEvent.keyUp(droppable, {key: 'Escape'});
+        await user.keyboard('{Escape}');
         expect(droppable).toHaveAttribute('data-droptarget', 'false');
         expect(document.activeElement).toBe(droppable);
       });
@@ -1720,16 +1838,14 @@ describe('useDrag and useDrop', function () {
         let draggable = tree.getByText('Drag me');
         let droppable = tree.getByText('Drop here');
 
-        userEvent.tab();
+        await user.tab();
         expect(document.activeElement).toBe(draggable);
 
-        fireEvent.keyDown(draggable, {key: 'Enter'});
-        fireEvent.keyUp(draggable, {key: 'Enter'});
+        await user.keyboard('{Enter}');
         act(() => jest.runAllTimers());
         expect(document.activeElement).toBe(droppable);
 
-        fireEvent.keyDown(droppable, {key: 'Enter'});
-        fireEvent.keyUp(droppable, {key: 'Enter'});
+        await user.keyboard('{Enter}');
         expect(onDrop).toHaveBeenCalledTimes(1);
         expect(onDrop).toHaveBeenCalledWith({
           type: 'drop',
@@ -1764,16 +1880,14 @@ describe('useDrag and useDrop', function () {
         let draggable = tree.getByText('Drag me');
         let droppable = tree.getByText('Drop here');
 
-        userEvent.tab();
+        await user.tab();
         expect(document.activeElement).toBe(draggable);
 
-        fireEvent.keyDown(draggable, {key: 'Enter'});
-        fireEvent.keyUp(draggable, {key: 'Enter'});
+        await user.keyboard('{Enter}');
         act(() => jest.runAllTimers());
         expect(document.activeElement).toBe(droppable);
 
-        fireEvent.keyDown(droppable, {key: 'Enter'});
-        fireEvent.keyUp(droppable, {key: 'Enter'});
+        await user.keyboard('{Enter}');
         expect(onDrop).toHaveBeenCalledTimes(1);
         expect(onDrop).toHaveBeenCalledWith({
           type: 'drop',
@@ -1813,16 +1927,14 @@ describe('useDrag and useDrop', function () {
         let draggable = tree.getByText('Drag me');
         let droppable = tree.getByText('Drop here');
 
-        userEvent.tab();
+        await user.tab();
         expect(document.activeElement).toBe(draggable);
 
-        fireEvent.keyDown(draggable, {key: 'Enter'});
-        fireEvent.keyUp(draggable, {key: 'Enter'});
+        await user.keyboard('{Enter}');
         act(() => jest.runAllTimers());
         expect(document.activeElement).toBe(droppable);
 
-        fireEvent.keyDown(droppable, {key: 'Enter'});
-        fireEvent.keyUp(droppable, {key: 'Enter'});
+        await user.keyboard('{Enter}');
         expect(onDrop).toHaveBeenCalledTimes(1);
         expect(onDrop).toHaveBeenCalledWith({
           type: 'drop',
@@ -1860,16 +1972,14 @@ describe('useDrag and useDrop', function () {
         let draggable = tree.getByText('Drag me');
         let droppable = tree.getByText('Drop here');
 
-        userEvent.tab();
+        await user.tab();
         expect(document.activeElement).toBe(draggable);
 
-        fireEvent.keyDown(draggable, {key: 'Enter'});
-        fireEvent.keyUp(draggable, {key: 'Enter'});
+        await user.keyboard('{Enter}');
         act(() => jest.runAllTimers());
         expect(document.activeElement).toBe(droppable);
 
-        fireEvent.keyDown(droppable, {key: 'Enter'});
-        fireEvent.keyUp(droppable, {key: 'Enter'});
+        await user.keyboard('{Enter}');
         expect(onDrop).toHaveBeenCalledTimes(1);
         expect(onDrop).toHaveBeenCalledWith({
           type: 'drop',
@@ -1898,7 +2008,7 @@ describe('useDrag and useDrop', function () {
     });
 
     describe('drop operations', () => {
-      it('should support getDropOperation to override the default operation', () => {
+      it('should support getDropOperation to override the default operation', async () => {
         let onDragEnd = jest.fn();
         let onDrop = jest.fn();
         let getDropOperation = jest.fn().mockImplementation(() => 'copy');
@@ -1910,19 +2020,17 @@ describe('useDrag and useDrop', function () {
         let draggable = tree.getByText('Drag me');
         let droppable = tree.getByText('Drop here');
 
-        userEvent.tab();
+        await user.tab();
         expect(document.activeElement).toBe(draggable);
 
-        fireEvent.keyDown(draggable, {key: 'Enter'});
-        fireEvent.keyUp(draggable, {key: 'Enter'});
+        await user.keyboard('{Enter}');
         act(() => jest.runAllTimers());
         expect(document.activeElement).toBe(droppable);
 
         expect(getDropOperation).toHaveBeenCalledWith(new Set(['text/plain']), ['move', 'copy', 'link']);
         expect(droppable).toHaveAttribute('data-droptarget', 'true');
 
-        fireEvent.keyDown(droppable, {key: 'Enter'});
-        fireEvent.keyUp(droppable, {key: 'Enter'});
+        await user.keyboard('{Enter}');
         expect(onDrop).toHaveBeenCalledWith({
           type: 'drop',
           x: 50,
@@ -1946,7 +2054,7 @@ describe('useDrag and useDrop', function () {
         });
       });
 
-      it('should support getAllowedDropOperations to limit allowed operations', () => {
+      it('should support getAllowedDropOperations to limit allowed operations', async () => {
         let onDragEnd = jest.fn();
         let onDrop = jest.fn();
         let getDropOperation = jest.fn().mockImplementation(() => 'copy');
@@ -1959,19 +2067,17 @@ describe('useDrag and useDrop', function () {
         let draggable = tree.getByText('Drag me');
         let droppable = tree.getByText('Drop here');
 
-        userEvent.tab();
+        await user.tab();
         expect(document.activeElement).toBe(draggable);
 
-        fireEvent.keyDown(draggable, {key: 'Enter'});
-        fireEvent.keyUp(draggable, {key: 'Enter'});
+        await user.keyboard('{Enter}');
         act(() => jest.runAllTimers());
         expect(document.activeElement).toBe(droppable);
 
         expect(getDropOperation).toHaveBeenCalledWith(new Set(['text/plain']), ['copy']);
         expect(droppable).toHaveAttribute('data-droptarget', 'true');
 
-        fireEvent.keyDown(droppable, {key: 'Enter'});
-        fireEvent.keyUp(droppable, {key: 'Enter'});
+        await user.keyboard('{Enter}');
         expect(onDrop).toHaveBeenCalledWith({
           type: 'drop',
           x: 50,
@@ -1995,7 +2101,7 @@ describe('useDrag and useDrop', function () {
         });
       });
 
-      it('should hide drop targets where getDropOperation returns "cancel"', () => {
+      it('should hide drop targets where getDropOperation returns "cancel"', async () => {
         let onDropEnter = jest.fn();
         let onDragEnd = jest.fn();
         let onDropEnter2 = jest.fn();
@@ -2010,11 +2116,10 @@ describe('useDrag and useDrop', function () {
         let droppable = tree.getByText('Drop here');
         let droppable2 = tree.getByText('Drop here 2');
 
-        userEvent.tab();
+        await user.tab();
         expect(document.activeElement).toBe(draggable);
 
-        fireEvent.keyDown(draggable, {key: 'Enter'});
-        fireEvent.keyUp(draggable, {key: 'Enter'});
+        await user.keyboard('{Enter}');
         act(() => jest.runAllTimers());
         expect(document.activeElement).toBe(droppable2);
 
@@ -2056,14 +2161,13 @@ describe('useDrag and useDrop', function () {
       expect(droppable).toHaveAttribute('data-droptarget', 'false');
       expect(droppable2).toHaveAttribute('data-droptarget', 'false');
 
-      userEvent.tab();
+      await user.tab();
 
       expect(document.activeElement).toBe(draggable);
       expect(draggable).toHaveAttribute('aria-describedby');
       expect(document.getElementById(draggable.getAttribute('aria-describedby'))).toHaveTextContent('Press Enter to start dragging');
 
-      fireEvent.keyDown(draggable, {key: 'Enter'});
-      fireEvent.keyUp(draggable, {key: 'Enter'});
+      await user.keyboard('{Enter}');
 
       expect(draggable).toHaveAttribute('data-dragging', 'true');
       expect(onDragStart).toHaveBeenCalledTimes(1);
@@ -2091,7 +2195,7 @@ describe('useDrag and useDrop', function () {
       expect(droppable).toHaveAttribute('data-droptarget', 'false');
       expect(droppable2).toHaveAttribute('data-droptarget', 'true');
 
-      userEvent.tab();
+      await user.tab();
 
       expect(document.activeElement).toBe(droppable);
       expect(droppable).toHaveAttribute('aria-describedby');
@@ -2117,8 +2221,7 @@ describe('useDrag and useDrop', function () {
       expect(droppable).toHaveAttribute('data-droptarget', 'true');
       expect(droppable2).toHaveAttribute('data-droptarget', 'false');
 
-      fireEvent.keyDown(droppable, {key: 'Enter'});
-      fireEvent.keyUp(droppable, {key: 'Enter'});
+      await user.keyboard('{Enter}');
 
       expect(document.activeElement).toBe(droppable);
       expect(droppable).not.toHaveAttribute('aria-describedby');
@@ -2171,9 +2274,8 @@ describe('useDrag and useDrop', function () {
       fireEvent.focus(document.body);
     });
 
-    afterEach(() => {
-      fireEvent.keyDown(document.body, {key: 'Escape'});
-      fireEvent.keyUp(document.body, {key: 'Escape'});
+    afterEach(async () => {
+      await user.keyboard('{Escape}');
     });
 
     it('should allow navigating with only focus events', async () => {
@@ -2204,7 +2306,7 @@ describe('useDrag and useDrop', function () {
       expect(document.getElementById(draggable.getAttribute('aria-describedby'))).toHaveTextContent('Click to start dragging');
       expect(draggable).toHaveAttribute('data-dragging', 'false');
 
-      fireEvent.click(draggable);
+      await user.click(draggable);
       act(() => jest.runAllTimers());
       expect(document.activeElement).toBe(draggable);
       expect(draggable).toHaveAttribute('aria-describedby');
@@ -2306,7 +2408,7 @@ describe('useDrag and useDrop', function () {
       expect(droppable2).toHaveAttribute('data-droptarget', 'false');
     });
 
-    it('should hide all non drop target elements from screen readers while dragging', () => {
+    it('should hide all non drop target elements from screen readers while dragging', async () => {
       let tree = render(<>
         <Draggable />
         <input />
@@ -2323,7 +2425,7 @@ describe('useDrag and useDrop', function () {
       let buttons = tree.getAllByRole('button');
       expect(buttons).toHaveLength(4);
 
-      fireEvent.click(draggable);
+      await user.click(draggable);
       act(() => jest.runAllTimers());
 
       buttons = tree.getAllByRole('button');
@@ -2333,7 +2435,7 @@ describe('useDrag and useDrop', function () {
       expect(tree.getByText('Text')).toHaveAttribute('aria-hidden', 'true');
     });
 
-    it('should support clicking the original drag target to cancel drag', () => {
+    it('should support clicking the original drag target to cancel drag', async () => {
       let tree = render(<>
         <Draggable />
         <Droppable />
@@ -2356,7 +2458,7 @@ describe('useDrag and useDrop', function () {
       expect(announce).toHaveBeenCalledWith('Drop canceled.');
     });
 
-    it('should support clicking the original drag target to cancel drag (virtual pointer event)', () => {
+    it('should support clicking the original drag target to cancel drag (virtual pointer event)', async () => {
       let tree = render(<>
         <Draggable />
         <Droppable />
@@ -2367,7 +2469,7 @@ describe('useDrag and useDrop', function () {
       fireEvent.focus(draggable);
       fireEvent(draggable, pointerEvent('pointerdown', {pointerId: 1, width: 1, height: 1, pressure: 0, detail: 0}));
       fireEvent(draggable, pointerEvent('pointerup', {pointerId: 1, width: 1, height: 1, pressure: 0, detail: 0}));
-      fireEvent.click(draggable);
+      await user.click(draggable);
       act(() => jest.runAllTimers());
       expect(draggable).toHaveAttribute('data-dragging', 'true');
       expect(draggable).toHaveAttribute('aria-describedby');
@@ -2384,7 +2486,7 @@ describe('useDrag and useDrop', function () {
       expect(announce).toHaveBeenCalledWith('Drop canceled.');
     });
 
-    it('should support double tapping the drop target to complete drag (virtual pointer event)', () => {
+    it('should support double tapping the drop target to complete drag (virtual pointer event)', async () => {
       let onDrop = jest.fn();
       let tree = render(<>
         <Draggable />
@@ -2397,7 +2499,7 @@ describe('useDrag and useDrop', function () {
       fireEvent.focus(draggable);
       fireEvent(draggable, pointerEvent('pointerdown', {pointerId: 1, width: 1, height: 1, pressure: 0, detail: 0}));
       fireEvent(draggable, pointerEvent('pointerup', {pointerId: 1, width: 1, height: 1, pressure: 0, detail: 0}));
-      fireEvent.click(draggable);
+      await user.click(draggable);
       act(() => jest.runAllTimers());
       expect(draggable).toHaveAttribute('data-dragging', 'true');
 
@@ -2415,7 +2517,7 @@ describe('useDrag and useDrop', function () {
       expect(onDrop).toHaveBeenCalledTimes(1);
     });
 
-    it('should handle when a drop target is added', () => {
+    it('should handle when a drop target is added', async () => {
       let setShowTarget2;
       let Test = () => {
         let [showTarget2, _setShowTarget2] = React.useState(false);
@@ -2434,7 +2536,7 @@ describe('useDrag and useDrop', function () {
       let draggable = tree.getByText('Drag me');
 
       fireEvent.focus(draggable);
-      fireEvent.click(draggable);
+      await user.click(draggable);
       act(() => jest.runAllTimers());
 
       expect(tree.getAllByRole('button')).toHaveLength(2);
@@ -2476,7 +2578,7 @@ describe('useDrag and useDrop', function () {
       expect(tree.getAllByRole('textbox')).toHaveLength(2);
     });
 
-    it('should handle when a drop target is removed', () => {
+    it('should handle when a drop target is removed', async () => {
       let setShowTarget2;
       let Test = () => {
         let [showTarget2, _setShowTarget2] = React.useState(true);
@@ -2495,7 +2597,7 @@ describe('useDrag and useDrop', function () {
       let draggable = tree.getByText('Drag me');
 
       fireEvent.focus(draggable);
-      fireEvent.click(draggable);
+      await user.click(draggable);
       act(() => jest.runAllTimers());
 
       expect(tree.getAllByRole('button')).toHaveLength(3);
@@ -2520,7 +2622,7 @@ describe('useDrag and useDrop', function () {
       let draggable = tree.getByText('Drag me');
 
       fireEvent.focus(draggable);
-      fireEvent.click(draggable);
+      await user.click(draggable);
       act(() => jest.runAllTimers());
 
       expect(tree.getAllByRole('button')).toHaveLength(3);
@@ -2531,7 +2633,7 @@ describe('useDrag and useDrop', function () {
       expect(tree.getAllByRole('button')).toHaveLength(2);
     });
 
-    it('should restore focus to the current drop target when focusing a non drop target element', () => {
+    it('should restore focus to the current drop target when focusing a non drop target element', async () => {
       let tree = render(<>
         <Draggable />
         <input />
@@ -2543,7 +2645,7 @@ describe('useDrag and useDrop', function () {
       let input = tree.getByRole('textbox');
 
       fireEvent.focus(draggable);
-      fireEvent.click(draggable);
+      await user.click(draggable);
       act(() => jest.runAllTimers());
 
       act(() => droppable.focus());
@@ -2552,7 +2654,7 @@ describe('useDrag and useDrop', function () {
       expect(document.activeElement).toBe(droppable);
     });
 
-    it('should restore focus to the drag target when focusing a non drop target element and there is no current drop target', () => {
+    it('should restore focus to the drag target when focusing a non drop target element and there is no current drop target', async () => {
       let tree = render(<>
         <Draggable />
         <input />
@@ -2563,14 +2665,14 @@ describe('useDrag and useDrop', function () {
       let input = tree.getByRole('textbox');
 
       fireEvent.focus(draggable);
-      fireEvent.click(draggable);
+      await user.click(draggable);
       act(() => jest.runAllTimers());
 
       act(() => input.focus());
       expect(document.activeElement).toBe(draggable);
     });
 
-    it('should restore focus to the current drop target when blurring all elements', () => {
+    it('should restore focus to the current drop target when blurring all elements', async () => {
       let tree = render(<>
         <Draggable />
         <Droppable />
@@ -2580,7 +2682,7 @@ describe('useDrag and useDrop', function () {
       let droppable = tree.getByText('Drop here');
 
       fireEvent.focus(draggable);
-      fireEvent.click(draggable);
+      await user.click(draggable);
       act(() => jest.runAllTimers());
 
       act(() => droppable.focus());
@@ -2589,7 +2691,7 @@ describe('useDrag and useDrop', function () {
       expect(document.activeElement).toBe(droppable);
     });
 
-    it('should restore focus to the drag target when blurring all elements and there is no current drop target', () => {
+    it('should restore focus to the drag target when blurring all elements and there is no current drop target', async () => {
       let tree = render(<>
         <Draggable />
         <Droppable />
@@ -2598,7 +2700,7 @@ describe('useDrag and useDrop', function () {
       let draggable = tree.getByText('Drag me');
 
       act(() => draggable.focus());
-      fireEvent.click(draggable);
+      await user.click(draggable);
       act(() => jest.runAllTimers());
 
       act(() => draggable.blur());
@@ -2620,7 +2722,7 @@ describe('useDrag and useDrop', function () {
       expect(draggable).toHaveAttribute('data-dragging', 'false');
     });
 
-    it('should ignore clicks not from screen readers during dragging', () => {
+    it('should ignore clicks not from screen readers during dragging', async () => {
       let tree = render(<>
         <Draggable />
         <Droppable />
@@ -2630,7 +2732,7 @@ describe('useDrag and useDrop', function () {
       let droppable = tree.getByText('Drop here');
 
       fireEvent.focus(draggable);
-      fireEvent.click(draggable);
+      await user.click(draggable);
       act(() => jest.runAllTimers());
       expect(draggable).toHaveAttribute('data-dragging', 'true');
 
@@ -2639,7 +2741,7 @@ describe('useDrag and useDrop', function () {
       expect(draggable).toHaveAttribute('data-dragging', 'true');
     });
 
-    it('should use touch specific aria descriptions when available', () => {
+    it('should use touch specific aria descriptions when available', async () => {
       window.ontouchstart = () => {};
 
       let tree = render(<>
@@ -2655,7 +2757,7 @@ describe('useDrag and useDrop', function () {
       expect(draggable).toHaveAttribute('aria-describedby');
       expect(document.getElementById(draggable.getAttribute('aria-describedby'))).toHaveTextContent('Double tap to start dragging');
 
-      fireEvent.click(draggable);
+      await user.click(draggable);
       act(() => jest.runAllTimers());
       expect(document.activeElement).toBe(draggable);
       expect(draggable).toHaveAttribute('aria-describedby');
