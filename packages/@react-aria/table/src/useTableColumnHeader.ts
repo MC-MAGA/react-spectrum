@@ -90,16 +90,16 @@ export function useTableColumnHeader<T>(props: AriaTableColumnHeaderProps<T>, st
   return {
     columnHeaderProps: {
       ...mergeProps(
+        focusableProps,
         gridCellProps,
         pressProps,
-        focusableProps,
         descriptionProps,
         // If the table is empty, make all column headers untabbable
         shouldDisableFocus ? {tabIndex: -1} : null
       ),
       role: 'columnheader',
       id: getColumnHeaderId(state, node.key),
-      'aria-colspan': node.colspan && node.colspan > 1 ? node.colspan : undefined,
+      'aria-colspan': node.colSpan && node.colSpan > 1 ? node.colSpan : undefined,
       'aria-sort': ariaSort
     }
   };

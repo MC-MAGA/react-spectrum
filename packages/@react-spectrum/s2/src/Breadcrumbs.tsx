@@ -31,12 +31,12 @@ import {focusRing, size, style} from '../style' with { type: 'macro' };
 import FolderIcon from '../s2wf-icons/S2_Icon_FolderBreadcrumb_20_N.svg';
 import {forwardRefType} from './types';
 import {getAllowedOverrides, StyleProps} from './style-utils' with {type: 'macro'};
+import {inertValue, useLayoutEffect} from '@react-aria/utils';
 // @ts-ignore
 import intlMessages from '../intl/*.json';
 import {Menu, MenuItem, MenuTrigger} from './Menu';
 import {Text} from './Content';
 import {useDOMRef, useResizeObserver} from '@react-spectrum/utils';
-import {useLayoutEffect} from '@react-aria/utils';
 import {useLocalizedStringFormatter} from '@react-aria/i18n';
 import {useSpectrumContextProps} from './useSpectrumContextProps';
 
@@ -62,10 +62,10 @@ interface BreadcrumbsStyleProps {
 
 export interface BreadcrumbsProps<T> extends Omit<AriaBreadcrumbsProps<T>, 'children' | 'items' | 'style' | 'className'>, BreadcrumbsStyleProps, StyleProps {
   /** The children of the Breadcrumbs. */
-  children?: ReactNode
+  children: ReactNode
 }
 
-export const BreadcrumbsContext = createContext<ContextValue<BreadcrumbsProps<any>, DOMRefValue<HTMLOListElement>>>(null);
+export const BreadcrumbsContext = createContext<ContextValue<Partial<BreadcrumbsProps<any>>, DOMRefValue<HTMLOListElement>>>(null);
 
 const wrapper = style<BreadcrumbsStyleProps>({
   position: 'relative',
@@ -95,7 +95,7 @@ const wrapper = style<BreadcrumbsStyleProps>({
   }
 }, getAllowedOverrides());
 
-const InternalBreadcrumbsContext = createContext<BreadcrumbsProps<any>>({});
+const InternalBreadcrumbsContext = createContext<Partial<BreadcrumbsProps<any>>>({});
 
 /** Breadcrumbs show hierarchy and navigational context for a user’s location within an application. */
 export const Breadcrumbs = /*#__PURE__*/ (forwardRef as forwardRefType)(function Breadcrumbs<T extends object>(props: BreadcrumbsProps<T>, ref: DOMRef<HTMLOListElement>) {
@@ -168,7 +168,7 @@ let HiddenBreadcrumbs = function (props: {listRef: RefObject<HTMLDivElement | nu
   return (
     <div
       // @ts-ignore
-      inert="true"
+      inert={inertValue(true)}
       ref={listRef}
       className={style({
         display: '[inherit]',
@@ -290,7 +290,7 @@ const heading = style({
 
 export interface BreadcrumbProps extends Omit<AriaBreadcrumbItemProps, 'children' | 'style' | 'className' | 'autoFocus'>, LinkDOMProps {
   /** The children of the breadcrumb item. */
-  children?: ReactNode
+  children: ReactNode
 }
 
 /** An individual Breadcrumb for Breadcrumbs. */
