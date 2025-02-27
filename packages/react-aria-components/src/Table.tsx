@@ -41,8 +41,21 @@ class TableCollection<T> extends BaseCollection<T> implements ITableCollection<T
 
   commit(firstKey: Key, lastKey: Key, isSSR = false) {
     this.updateColumns(isSSR);
+
+    this.rows = [];
+    for (let row of this.getChildren(this.body.key)) {
+      let lastChildKey = (row as CollectionNode<T>).lastChildKey;
+      if (lastChildKey != null) {
+        let lastCell = this.getItem(lastChildKey) as GridNode<T>;
+        let numberOfCellsInRow = (lastCell.colIndex ?? lastCell.index) + (lastCell.colSpan ?? 1);
+        if (numberOfCellsInRow !== this.columns.length && !isSSR) {
+          throw new Error(`Cell count must match column count. Found ${numberOfCellsInRow} cells and ${this.columns.length} columns.`);
+        }
+      }
+      this.rows.push(row);
+    }
+
     super.commit(firstKey, lastKey, isSSR);
-    this.rows = [...this.getChildren(this.body.key)];
   }
 
   private updateColumns(isSSR: boolean) {
@@ -526,11 +539,11 @@ export interface TableHeaderRenderProps {
 
 export interface TableHeaderProps<T> extends StyleRenderProps<TableHeaderRenderProps>, HoverEvents {
   /** A list of table columns. */
-  columns?: T[],
+  columns?: Iterable<T>,
   /** A list of `Column(s)` or a function. If the latter, a list of columns must be provided using the `columns` prop. */
   children?: ReactNode | ((item: T) => ReactElement),
   /** Values that should invalidate the column cache when using dynamic collections. */
-  dependencies?: any[]
+  dependencies?: ReadonlyArray<any>
 }
 
 /**
@@ -737,7 +750,6 @@ export const Column = /*#__PURE__*/ createLeafComponent('column', (props: Column
       {...mergeProps(filterDOMProps(props as any), columnHeaderProps, focusProps, hoverProps)}
       {...renderProps}
       style={style}
-      colSpan={column.colspan}
       ref={ref}
       data-hovered={isHovered || undefined}
       data-focused={isFocused || undefined}
@@ -989,7 +1001,7 @@ export interface RowProps<T> extends StyleRenderProps<RowRenderProps>, LinkDOMPr
   /** The object value that this row represents. When using dynamic collections, this is set automatically. */
   value?: T,
   /** Values that should invalidate the cell cache when using dynamic collections. */
-  dependencies?: any[],
+  dependencies?: ReadonlyArray<any>,
   /** A string representation of the row's contents, used for features like typeahead. */
   textValue?: string,
   /** Whether the row is disabled. */
@@ -1173,7 +1185,9 @@ export interface CellProps extends RenderProps<CellRenderProps> {
   /** The unique id of the cell. */
   id?: Key,
   /** A string representation of the cell's contents, used for features like typeahead. */
-  textValue?: string
+  textValue?: string,
+  /** Indicates how many columns the data cell spans. */
+  colSpan?: number
 }
 
 /**

@@ -1,3 +1,15 @@
+/*
+ * Copyright 2025 Adobe. All rights reserved.
+ * This file is licensed to you under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License. You may obtain a copy
+ * of the License at http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR REPRESENTATIONS
+ * OF ANY KIND, either express or implied. See the License for the specific language
+ * governing permissions and limitations under the License.
+ */
+
 import {AriaLabelingProps, DOMAttributes, FocusableElement, RefObject} from '@react-types/shared';
 import {focusWithoutScrolling, mergeProps, useLayoutEffect} from '@react-aria/utils';
 import {getInteractionModality, useFocusWithin, useHover} from '@react-aria/interactions';
@@ -37,10 +49,34 @@ export function useToastRegion<T>(props: AriaToastRegionProps, state: ToastState
     onHoverEnd: state.resumeAll
   });
 
+  let prevToastCount = useRef(state.visibleToasts.length);
+  useEffect(() => {
+    // Resume timers if the user's pointer left the region due to a toast being removed and the region shrinking.
+    // Waits until the next pointermove after a toast is removed.
+    let onPointerMove = (e: PointerEvent) => {
+      if (!ref.current) {
+        document.removeEventListener('pointermove', onPointerMove);
+        return;
+      }
+      let regionRect = ref.current.getBoundingClientRect();
+      const isPointerOverRegion = e.clientX >= regionRect.left && e.clientX <= regionRect.right && e.clientY >= regionRect.top && e.clientY <= regionRect.bottom;
+      if (!isPointerOverRegion) {
+        state.resumeAll();
+      }
+      document.removeEventListener('pointermove', onPointerMove);
+    };
+
+    if (state.visibleToasts.length < prevToastCount.current && state.visibleToasts.length > 0) {
+      document.addEventListener('pointermove', onPointerMove);
+    }
+    prevToastCount.current = state.visibleToasts.length;
+    return () => {
+      document.removeEventListener('pointermove', onPointerMove);
+    };
+  }, [state.visibleToasts, ref, state]);
+
   // Manage focus within the toast region.
   // If a focused containing toast is removed, move focus to the next toast, or the previous toast if there is no next toast.
-  // We might be making an assumption with how this works if someone implements the priority queue differently, or
-  // if they only show one toast at a time.
   let toasts = useRef<FocusableElement[]>([]);
   let prevVisibleToasts = useRef(state.visibleToasts);
   let focusedToast = useRef<number | null>(null);

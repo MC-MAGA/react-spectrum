@@ -20,9 +20,9 @@ export {useDateField, useDatePicker, useDateRangePicker, useDateSegment, useTime
 export {useDialog} from '@react-aria/dialog';
 export {useDisclosure} from '@react-aria/disclosure';
 export {useDrag, useDrop, useDraggableCollection, useDroppableCollection, useDroppableItem, useDropIndicator, useDraggableItem, useClipboard, DragPreview, ListDropTargetDelegate, DIRECTORY_DRAG_TYPE, isDirectoryDropItem, isFileDropItem, isTextDropItem} from '@react-aria/dnd';
-export {FocusRing, FocusScope, useFocusManager, useFocusRing, useFocusable} from '@react-aria/focus';
+export {FocusRing, FocusScope, useFocusManager, useFocusRing} from '@react-aria/focus';
 export {I18nProvider, useCollator, useDateFormatter, useFilter, useLocale, useLocalizedStringFormatter, useMessageFormatter, useNumberFormatter} from '@react-aria/i18n';
-export {useFocus, useFocusVisible, useFocusWithin, useHover, useInteractOutside, useKeyboard, useMove, usePress, useLongPress} from '@react-aria/interactions';
+export {useFocus, useFocusVisible, useFocusWithin, useHover, useInteractOutside, useKeyboard, useMove, usePress, useLongPress, useFocusable, Pressable, Focusable} from '@react-aria/interactions';
 export {useField, useLabel} from '@react-aria/label';
 export {useGridList, useGridListItem, useGridListSelectionCheckbox} from '@react-aria/gridlist';
 export {useLink} from '@react-aria/link';
@@ -45,6 +45,7 @@ export {useTab, useTabList, useTabPanel} from '@react-aria/tabs';
 export {useTag, useTagGroup} from '@react-aria/tag';
 export {useTextField} from '@react-aria/textfield';
 export {useTooltip, useTooltipTrigger} from '@react-aria/tooltip';
+export {useTree, useTreeItem} from '@react-aria/tree';
 export {chain, mergeProps, useId, useObjectRef, RouterProvider} from '@react-aria/utils';
 export {VisuallyHidden, useVisuallyHidden} from '@react-aria/visually-hidden';
 
@@ -82,5 +83,6 @@ export type {AriaTabListProps, AriaTabListOptions, AriaTabPanelProps, AriaTabPro
 export type {AriaTagGroupProps, AriaTagProps, TagAria, TagGroupAria} from '@react-aria/tag';
 export type {AriaTextFieldOptions, AriaTextFieldProps, TextFieldAria} from '@react-aria/textfield';
 export type {AriaTooltipProps, TooltipAria, TooltipTriggerAria, TooltipTriggerProps} from '@react-aria/tooltip';
+export type {AriaTreeProps, AriaTreeItemOptions, TreeProps, TreeAria, TreeItemAria} from '@react-aria/tree';
 export type {VisuallyHiddenAria, VisuallyHiddenProps} from '@react-aria/visually-hidden';
 export type {Key, Orientation} from '@react-types/shared';

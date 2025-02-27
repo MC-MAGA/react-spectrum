@@ -11,7 +11,9 @@
  */
 
 import {AriaTextFieldProps} from '@react-types/textfield';
-import {
+import {DOMAttributes, ValidationResult} from '@react-types/shared';
+import {filterDOMProps, getOwnerWindow, mergeProps, useFormReset} from '@react-aria/utils';
+import React, {
   ChangeEvent,
   HTMLAttributes,
   type JSX,
@@ -19,11 +21,9 @@ import {
   RefObject,
   useEffect
 } from 'react';
-import {DOMAttributes, ValidationResult} from '@react-types/shared';
-import {filterDOMProps, getOwnerWindow, mergeProps, useFormReset} from '@react-aria/utils';
 import {useControlledState} from '@react-stately/utils';
 import {useField} from '@react-aria/label';
-import {useFocusable} from '@react-aria/focus';
+import {useFocusable} from '@react-aria/interactions';
 import {useFormValidation} from '@react-aria/form';
 import {useFormValidationState} from '@react-stately/form';
 
@@ -186,6 +186,7 @@ export function useTextField<T extends TextFieldIntrinsicElements = DefaultEleme
         inputMode: props.inputMode,
         autoCorrect: props.autoCorrect,
         spellCheck: props.spellCheck,
+        [parseInt(React.version, 10) >= 17 ? 'enterKeyHint' : 'enterkeyhint']: props.enterKeyHint,
 
         // Clipboard events
         onCopy: props.onCopy,
